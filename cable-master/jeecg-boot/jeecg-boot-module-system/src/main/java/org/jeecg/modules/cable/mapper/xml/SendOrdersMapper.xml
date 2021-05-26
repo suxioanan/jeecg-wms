@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.SendOrdersMapper">
+    <!-- 根据年份和月份查询当月每日的车辆任务的数量 -->
+    <select id="selectTheSameMonthSendOrders" resultType="org.jeecg.modules.cable.vo.TaskVo">
+        SELECT
+            DATE_FORMAT( so.task_time, '%d' ) as d,
+            COUNT(DISTINCT sos.type_id ) as cou
+        FROM
+            send_orders_subtabulation sos
+            LEFT JOIN send_orders so ON so.id = sos.send_orders_id
+        WHERE
+            DATE_FORMAT( so.task_time, '%Y%m' ) = DATE_FORMAT( #{date}, '%Y%m' )
+            AND sos.distribution_type = 0
+        GROUP BY
+            DATE_FORMAT( so.task_time, '%d' )
+    </select>
+
+    <!-- 根据日期查询作业车辆 -->
+    <select id="taskList" resultType="org.jeecg.modules.cable.vo.SendOrdersTaskVo">
+        SELECT
+        DISTINCT
+            so.id,
+            so.plan_id,
+            so.plan_type as plan_type_name,
+            sos.type_id as license,
+            so.operator_schema,
+            wa.`name` AS warehouse_name,
+            so.project_no,
+            so.backup2 AS engineeringAddress
+        FROM
+            send_orders so
+            LEFT JOIN send_orders_subtabulation sos ON so.id = sos.send_orders_id
+            LEFT JOIN warehouse wa ON wa.id = so.warehouse_id
+        WHERE
+            sos.distribution_type = '0'
+            AND DATE_FORMAT( so.task_time, '%Y%m%d' ) = DATE_FORMAT( #{date}, '%Y%m%d' )
+	    GROUP BY so.plan_type,sos.type_id,so.operator_schema,wa.`name`,so.project_no,so.backup2
+    </select>
+
+    <select id="getPlan" resultType="org.jeecg.modules.cable.vo.SendOrdersTaskVo">
+        SELECT
+        plan_type,
+        project_no
+        <if test='name=="1"'>
+            ,project_name
+            ,engineering_address
+        </if>
+        <if test='name=="2"'>
+            ,site AS project_name
+            ,address AS engineering_address
+        </if>
+        <if test='name=="3"'>
+            ,eng_name AS project_name
+            ,address AS engineering_address
+        </if>
+        <if test='name=="4"'>
+            ,eng_name AS project_name
+            ,sampling_addres AS engineering_address
+        </if>
+        FROM
+        plan${name}
+        WHERE id = #{id}
+    </select>
+
+    <insert id="saveSendOrders" keyProperty="sendOrdersVo.id" useGeneratedKeys="true">
+        INSERT INTO send_orders ( operator_schema, warehouse_id, end_warehouse_id, storage_location_id, plan_id, plan_type, task_time, project_no,create_time,create_by )
+        VALUES(#{sendOrdersVo.operatorSchema},#{sendOrdersVo.warehouseId},#{sendOrdersVo.endWarehouseId},#{sendOrdersVo.storageLocationId},#{sendOrdersVo.planId},#{sendOrdersVo.planType},#{sendOrdersVo.taskTime},#{sendOrdersVo.projectNo},#{date},#{name})
+    </insert>
+
+    <update id="updatePlanState">
+        UPDATE plan${planType} SET send_orders_state = 1 WHERE id = #{planId}
+    </update>
+
+    <!-- 今日派单 -->
+    <select id="selectPlanSendOrdersTheSameDay" resultType="org.jeecg.modules.cable.vo.SendOrdersVo">
+        SELECT * FROM (
+        SELECT
+            so.id,
+            p.id AS plan_id,
+            p.plan_type AS p_plan_type,
+            so.plan_type,
+            p.project_name,
+            so.backup3 AS linkman,
+	        so.backup4 AS phone,
+	        so.backup2 AS address,
+            DATE_FORMAT( so.task_time, '%Y-%m-%d' ) AS task_time,
+            so.create_time,
+            GROUP_CONCAT( IF ( sos.distribution_type = 0, type_id, NULL ) ) AS a0,
+		    GROUP_CONCAT( IF ( sos.distribution_type = 1, su.realname, NULL ) ) AS a1,
+            so.operator_schema,
+            p.waste_material_text AS raw_material_text,
+            ( select SUM(backup1) from send_orders where id = so.id ) AS backup1
+        FROM
+            send_orders so
+            LEFT JOIN plan1 AS p ON p.id = so.plan_id
+            LEFT JOIN send_orders_subtabulation AS sos ON sos.send_orders_id = so.id
+		    LEFT JOIN sys_user su ON sos.type_id = su.id AND sos.distribution_type = 1
+        WHERE
+            so.plan_type = 1
+            AND DATE_FORMAT( so.task_time, '%Y-%m-%d' ) = DATE_FORMAT( NOW( ), '%Y-%m-%d' )
+        GROUP BY
+            p.project_no,p.waste_material_code,so.operator_schema
+						UNION ALL
+        SELECT
+            so.id,
+            p.id AS plan_id,
+            '备品' AS p_plan_type,
+            so.plan_type,
+            p.equipment_name AS project_name,
+            so.backup3 AS linkman,
+	        so.backup4 AS phone,
+	        so.backup2 AS address,
+            DATE_FORMAT( so.task_time, '%Y-%m-%d' ) AS task_time,
+            so.create_time,
+            GROUP_CONCAT( IF ( sos.distribution_type = 0, type_id, NULL ) ) AS a0,
+		    GROUP_CONCAT( IF ( sos.distribution_type = 1, su.realname, NULL ) ) AS a1,
+            so.operator_schema,
+            p.equipment_name AS raw_material_text,
+            ( select SUM(backup1) from send_orders where id = so.id ) AS backup1
+        FROM
+            send_orders so
+            LEFT JOIN plan2 AS p ON p.id = so.plan_id
+            LEFT JOIN send_orders_subtabulation AS sos ON sos.send_orders_id = so.id
+		    LEFT JOIN sys_user su ON sos.type_id = su.id AND sos.distribution_type = 1
+        WHERE
+            so.plan_type = 2
+            AND DATE_FORMAT( so.task_time, '%Y-%m-%d' ) = DATE_FORMAT( NOW( ), '%Y-%m-%d' )
+        GROUP BY
+            p.project_no,p.equipment_name,so.operator_schema
+						UNION ALL
+        SELECT
+            so.id,
+            p.id AS plan_id,
+            p.plan_type AS p_plan_type,
+            so.plan_type,
+            p.eng_name AS project_name,
+            so.backup3 AS linkman,
+	        so.backup4 AS phone,
+	        so.backup2 AS address,
+            DATE_FORMAT( so.task_time, '%Y-%m-%d' ) AS task_time,
+            so.create_time,
+            GROUP_CONCAT( IF ( sos.distribution_type = 0, type_id, NULL ) ) AS a0,
+		    GROUP_CONCAT( IF ( sos.distribution_type = 1, su.realname, NULL ) ) AS a1,
+            so.operator_schema,
+            p.material_describe AS raw_material_text,
+            ( select SUM(backup1) from send_orders where id = so.id ) AS backup1
+        FROM
+            send_orders so
+            LEFT JOIN plan3 AS p ON p.id = so.plan_id
+            LEFT JOIN send_orders_subtabulation AS sos ON sos.send_orders_id = so.id
+		    LEFT JOIN sys_user su ON sos.type_id = su.id AND sos.distribution_type = 1
+        WHERE
+            so.plan_type = 3
+            AND DATE_FORMAT( so.task_time, '%Y-%m-%d' ) = DATE_FORMAT( NOW( ), '%Y-%m-%d' )
+        GROUP BY
+            p.project_no,p.material_describe,so.operator_schema
+						UNION ALL
+        SELECT
+            so.id,
+            p.id AS plan_id,
+            '电缆2' AS p_plan_type,
+            so.plan_type,
+            p.eng_name AS project_name,
+            so.backup3 AS linkman,
+	        so.backup4 AS phone,
+	        so.backup2 AS address,
+            DATE_FORMAT( so.task_time, '%Y-%m-%d' ) AS task_time,
+            so.create_time,
+            GROUP_CONCAT( IF ( sos.distribution_type = 0, type_id, NULL ) ) AS a0,
+		    GROUP_CONCAT( IF ( sos.distribution_type = 1, su.realname, NULL ) ) AS a1,
+            so.operator_schema,
+            CONCAT(p.voltage_grade,' ',p.cable_cross) AS raw_material_text,
+            ( select SUM(backup1) from send_orders where id = so.id ) AS backup1
+        FROM
+            send_orders so
+            LEFT JOIN plan4 AS p ON p.id = so.plan_id
+            LEFT JOIN send_orders_subtabulation AS sos ON sos.send_orders_id = so.id
+		    LEFT JOIN sys_user su ON sos.type_id = su.id AND sos.distribution_type = 1
+        WHERE
+            so.plan_type = 4
+            AND DATE_FORMAT( so.task_time, '%Y-%m-%d' ) = DATE_FORMAT( NOW( ), '%Y-%m-%d' )
+        GROUP BY
+            p.project_no,p.voltage_grade,p.cable_cross,so.operator_schema
+            ) a
+            ORDER BY a.task_time,a.create_time DESC
+    </select>
+
+    <!-- 派单记录 -->
+    <select id="selectSendOrdersController" resultType="org.jeecg.modules.cable.vo.SendOrdersVo">
+        SELECT
+        send_orders.backup1,
+        send_orders.id,
+        send_orders.operator_schema,
+        send_orders.warehouse_id,
+        warehouse.name AS warehouse_name,
+        wed.`name` AS end_warehouse_name,
+        send_orders.storage_location_id,
+        storage_location.storage_location_name,
+        send_orders.plan_id,
+        send_orders.plan_type,
+        DATE_FORMAT( send_orders.task_time, '%Y-%m-%d' ) AS task_time,
+        send_orders.create_time,
+        send_orders.project_no,
+        send_orders.end_warehouse_id,
+        GROUP_CONCAT( IF ( send_orders_subtabulation.distribution_type = 0, send_orders_subtabulation.type_id, NULL ) )
+        AS a0,
+        GROUP_CONCAT( IF ( send_orders_subtabulation.distribution_type = 1, su.realname, NULL ) )
+        AS a1,
+        send_orders.backup3 AS linkman,
+        send_orders.backup4 AS phone,
+        send_orders.backup2 AS address,
+        <if test='planType=="1"'>
+            p.project_name,
+            p.waste_material_text AS rawMaterialText
+        </if>
+        <if test='planType=="2"'>
+            p.site AS project_name,
+            p.backup2 AS rawMaterialText
+        </if>
+        <if test='planType=="3"'>
+            p.eng_name AS project_name,
+            p.material_describe AS rawMaterialText
+        </if>
+        <if test='planType=="4"'>
+            p.eng_name AS project_name,
+            CONCAT(p.voltage_grade,' ',p.cable_cross) AS rawMaterialText
+        </if>
+        FROM
+        send_orders
+        LEFT JOIN send_orders_subtabulation ON send_orders.id = send_orders_subtabulation.send_orders_id
+        LEFT JOIN warehouse ON warehouse.id = send_orders.warehouse_id
+        LEFT JOIN warehouse wed ON wed.id = send_orders.end_warehouse_id
+        LEFT JOIN storage_location ON storage_location.id =send_orders.storage_location_id
+        LEFT JOIN plan${planType} AS p ON p.id = send_orders.plan_id
+        LEFT JOIN sys_user su ON send_orders_subtabulation.type_id = su.id AND
+        send_orders_subtabulation.distribution_type = 1
+        <where>
+            <if test="planId!=null">
+                send_orders.plan_id in
+                <foreach collection="planId" item="id" open="(" close=")" separator=",">
+                    #{id}
+                </foreach>
+            </if>
+            <if test="planType!=null">
+                AND send_orders.plan_type=#{planType}
+            </if>
+        </where>
+        GROUP BY
+        send_orders.id
+        ORDER BY send_orders.task_time,send_orders.create_time DESC
+    </select>
+
+    <!-- 完单记录 -->
+    <select id="selectSendOrdersWD" resultType="org.jeecg.modules.cable.vo.SendOrdersVo">
+        SELECT * FROM (
+        select
+        rs.id,
+        p.id AS planid,
+        '出库' plan_type,
+        w.NAME AS wname,
+        w.id AS zjid,
+        sl.id AS kwid,
+        sl.storage_location_name AS storagename,
+        w2.id AS mbid,
+        w2.NAME AS mubiaock,
+        DATE_FORMAT( rs.receiving_time, '%Y-%m-%d' ) AS tasktime,
+        rs.accomplish_num AS accomplishNum,
+        rs.accomplish_num_unit AS accomplishnumunit,
+        rs.accomplish_weight AS accomplishWeight,
+        rs.accomplish_weight_unit AS accomplishweightunit,
+        rs.scene_situation AS sceneSituation,
+        rs.scene_abnormal_photos AS phontos,
+        rs.anomalous_cause AS anomalousCause,
+        rs.receipt_photos AS receiptPhotos,
+        rs.annotation,
+        rs.texture,
+        rs.accomplish_volume,
+        rs.receipt_no,
+        rs.create_time,
+        <if test='planType=="1"'>
+            p.project_name,
+            p.waste_material_text AS rawMaterialText
+        </if>
+        <if test='planType=="2"'>
+            p.site AS project_name,
+            p.backup2 AS rawMaterialText
+        </if>
+        <if test='planType=="3"'>
+            p.eng_name AS project_name,
+            p.material_describe AS rawMaterialText
+        </if>
+        <if test='planType=="4"'>
+            p.eng_name AS project_name,
+            CONCAT(rs.recycling_specifications,' ',rs.texture) AS rawMaterialText
+        </if>
+        from
+        receiving_storage rs
+        LEFT JOIN storage_location sl ON rs.storage_location_id = sl.id
+        LEFT JOIN warehouse w ON w.id = rs.warehouse_id
+        LEFT JOIN warehouse w2 ON w2.id = rs.backup1
+        LEFT JOIN plan${planType} p on rs.plan_id=p.id AND rs.plan_type = ${planType}
+        <where>
+            p.id in
+            <foreach collection="planId" item="id" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </where>
+        union all
+        select
+        ds.id,
+        p.id AS planid,
+        '入库' plan_type,
+        w.NAME AS wname,
+        w.id AS zjid,
+        sl.id AS kwid,
+        sl.storage_location_name AS storagename,
+        NULL AS mbid,
+        NULL AS mubiaock,
+        DATE_FORMAT( ds.deliver_time, '%Y-%m-%d' ) AS tasktime,
+        ds.accomplish_num AS accomplishNum,
+        ds.accomplish_num_unit AS accomplishnumunit,
+        ds.accomplish_weight AS accomplishWeight,
+        ds.accomplish_weight_unit AS accomplishweightunit,
+        ds.scene_situation AS sceneSituation,
+        ds.scene_photos AS phontos,
+        ds.anomalous_cause AS anomalousCause,
+        ds.receipt_photos AS receiptPhotos,
+        ds.annotation,
+        ds.texture,
+        ds.accomplish_volume,
+        ds.receipt_no,
+        ds.create_time,
+        <if test='planType=="1"'>
+            p.project_name,
+            p.waste_material_text AS rawMaterialText
+        </if>
+        <if test='planType=="2"'>
+            p.site AS project_name,
+            p.backup2 AS rawMaterialText
+        </if>
+        <if test='planType=="3"'>
+            p.eng_name AS project_name,
+            p.material_describe AS rawMaterialText
+        </if>
+        <if test='planType=="4"'>
+            p.eng_name AS project_name,
+            ds.recycling_specifications AS rawMaterialText
+        </if>
+        from
+        deliver_storage ds
+        LEFT JOIN storage_location sl ON ds.storage_location_id = sl.id
+        LEFT JOIN warehouse w ON w.id = ds.warehouse_id
+        LEFT JOIN plan${planType} p on ds.plan_id=p.id AND ds.plan_type = ${planType}
+        <where>
+            p.id in
+            <foreach collection="planId" item="id" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </where>
+        ) AS a
+        ORDER BY a.tasktime,a.create_time DESC
+    </select>
+</mapper>

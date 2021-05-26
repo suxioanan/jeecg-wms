@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.InsuranceMapper">
+    <select id="getInsurancePage" resultType="org.jeecg.modules.cable.vo.InsuranceListVo">
+        SELECT
+        insurance.id,
+        vehicle.license,
+        vehicle.id as vehicle_id,
+        insura_name,
+        insurance_policy,
+        strong_date_begin,
+        strong_date_end,
+        insurance_date_begin,
+        insurance_date_end,
+        strong_policy
+        FROM
+        insurance
+        LEFT JOIN vehicle ON vehicle.license = insurance.license
+        <if test="license!=null and license!=''">
+            where vehicle.license LIKE concat('%',#{license},'%')
+        </if>
+        ORDER BY
+        insurance.update_time DESC
+    </select>
+</mapper>

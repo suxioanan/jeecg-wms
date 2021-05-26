@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.Plan2Mapper">
+    <!-- 计划2批量派单出库数据 -->
+    <select id="idsqueryChuList" resultType="org.jeecg.modules.cable.vo.SendOrdersVo">
+        SELECT
+        p.id,
+        p.project_no,
+        p.site AS project_name,
+        ml.`name` AS wasteMaterialText,
+        iy.warehouse_id,
+        iy.storage_location_id,
+        wa.name AS wname,
+        st.storage_location_name AS storagename,
+        iy.inventory_quantity
+        FROM plan2 p
+        LEFT JOIN material ml ON p.backup3 = ml.serial
+        LEFT JOIN inventory iy ON (ml.id = iy.material_id AND p.project_no = iy.project_no AND p.retired_asset_no =
+        iy.asset_no)
+        LEFT JOIN warehouse wa ON iy.warehouse_id = wa.id
+        LEFT JOIN storage_location st ON iy.storage_location_id = st.id
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <!-- 查询计划2批量出库完单的数据 -->
+    <select id="getPlan2ReceivingStorageList" resultType="org.jeecg.modules.cable.vo.Plan2Vo">
+        SELECT
+        p.id,
+        p.project_no,
+        p.site,
+        p.backup2,
+        p.retired_asset_no,
+        iy.inventory_quantity,
+        w.id AS warehouseId,
+        w.`name` AS warehouseName,
+        s.id AS storageLocationId,
+        s.storage_location_name
+        FROM
+        plan2 p
+        LEFT JOIN material ml ON p.backup3 = ml.serial
+        LEFT JOIN inventory iy ON ( p.project_no = iy.project_no AND ml.id = iy.material_id AND p.retired_asset_no =
+        iy.asset_no AND p.id = iy.backup1 AND iy.backup2 = 2 )
+        LEFT JOIN warehouse w ON iy.warehouse_id = w.id
+        LEFT JOIN storage_location s ON iy.storage_location_id = s.id
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        GROUP BY p.id
+    </select>
+
+    <!-- 查询计划2批量入库完单的数据 -->
+    <select id="getPlan2DeliverStorage" resultType="org.jeecg.modules.cable.entity.Plan2">
+        SELECT
+        p.id,
+        p.project_no,
+        p.site,
+        p.backup2,
+        p.retired_asset_no,
+        p.capacity
+        FROM
+        plan2 p
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="pageList" resultType="org.jeecg.modules.cable.entity.Plan2">
+        SELECT * FROM plan2
+        <where>
+            <if test="null != plan2.site and '' != plan2.site">
+                AND plan2.site LIKE CONCAT('%',#{plan2.site},'%')
+            </if>
+            <if test="null != plan2.equipmentName and '' != plan2.equipmentName">
+                AND plan2.equipment_name LIKE CONCAT('%',#{plan2.equipmentName},'%')
+            </if>
+            <if test="null != plan2.theLocation and '' != plan2.theLocation">
+                AND plan2.the_location LIKE CONCAT('%',#{plan2.theLocation},'%')
+            </if>
+            <if test="null != plan2.projectNo and '' != plan2.projectNo">
+                AND plan2.project_no LIKE CONCAT('%',#{plan2.projectNo},'%')
+            </if>
+            <if test="null != plan2.completeState">
+                AND plan2.complete_state = #{plan2.completeState}
+            </if>
+        </where>
+        ORDER BY complete_state ASC,update_time DESC,send_orders_state ASC
+    </select>
+
+    <!-- 导出excel bai 2020/9/7 -->
+    <select id="exportPlan2" resultType="org.jeecg.modules.cable.dto.Plan2Im">
+        SELECT
+        p.id,
+        p.site,
+        p.equipment_name,
+        p.project_no,
+        p.retired_asset_no,
+        p.capacity,
+        p.model,
+        p.asset_status,
+        p.retired_date,
+        p.receipt_is,
+        p.the_location,
+        p.disposal_way,
+        p.asset_no,
+        p.project_type,
+        p.equipment_owners,
+        p.address,
+        p.note,
+        p.equipment_no,
+        p.disposed,
+        p.backup3,
+        p.backup2,
+        d.deliver_time,
+        d.accomplish_num AS deliverNum,
+        r.receiving_time,
+        r.accomplish_num AS receivingNum
+        FROM
+        plan2 p
+        LEFT JOIN deliver_storage d ON p.id = d.plan_id AND d.plan_type = 2
+        LEFT JOIN receiving_storage r ON p.id = r.plan_id AND r.plan_type = 2
+        <where>
+            <if test="null != plan2.retiredAssetNo and '' != plan2.retiredAssetNo">
+                AND p.retired_asset_no LIKE CONCAT('%',#{plan2.retiredAssetNo},'%')
+            </if>
+            <if test="null != plan2.site and '' != plan2.site">
+                AND p.site LIKE CONCAT('%',#{plan2.site},'%')
+            </if>
+            <if test="null != plan2.equipmentName and '' != plan2.equipmentName">
+                AND p.equipment_name LIKE CONCAT('%',#{plan2.equipmentName},'%')
+            </if>
+            <if test="null != plan2.projectNo and '' != plan2.projectNo">
+                AND p.project_no LIKE CONCAT('%',#{plan2.projectNo},'%')
+            </if>
+            <if test="null != plan2.completeState">
+                AND p.complete_state = #{plan2.completeState}
+            </if>
+            <if test="null != plan2.beginTime">
+                AND p.create_time &gt;= #{plan2.beginTime}
+            </if>
+            <if test="null != plan2.endTime">
+                AND p.create_time &lt;= #{plan2.endTime}
+            </if>
+        </where>
+        GROUP BY p.id
+    </select>
+
+    <!-- 首页备品统计物料出入库数量 bai 2020/9/16 -->
+    <select id="getBPTJList" resultType="org.jeecg.modules.cable.vo.IndexBPTJVo">
+        SELECT
+        *
+        FROM
+        (
+        SELECT
+        p.id,
+        m.backup1,
+        SUM( r.accomplish_num ) AS receivingNum,
+        r.receiving_time AS receivingTime,
+        SUM( d.accomplish_num ) AS deliverNum,
+        d.deliver_time AS deliverTime
+        FROM
+        plan2 p
+        LEFT JOIN receiving_storage r ON p.id = r.plan_id
+        AND r.plan_type = 2
+        LEFT JOIN deliver_storage d ON p.id = d.plan_id
+        AND d.plan_type = 2
+        LEFT JOIN material m ON p.backup3 = m.serial
+        WHERE
+        m.backup1 IN ( '变压器', '柜子', '箱变', '屏' )
+        GROUP BY
+        m.backup1 UNION ALL
+        SELECT
+        p.id,
+        '其他' as backup1,
+        SUM( r.accomplish_num ) AS receivingNum,
+        r.receiving_time AS receivingTime,
+        SUM( d.accomplish_num ) AS deliverNum,
+        d.deliver_time AS deliverTime
+        FROM
+        plan2 p
+        LEFT JOIN receiving_storage r ON p.id = r.plan_id
+        AND r.plan_type = 2
+        LEFT JOIN deliver_storage d ON p.id = d.plan_id
+        AND d.plan_type = 2
+        LEFT JOIN material m ON p.backup3 = m.serial
+        WHERE
+        m.backup1 NOT IN ( '变压器', '柜子', '箱变', '屏' )
+        GROUP BY
+        m.backup1
+        ) `result`
+        <where>
+            <if test="vo.beginTime != null">
+                AND `result`.receivingTime &gt;= #{vo.beginTime}
+                AND `result`.deliverTime &gt;= #{vo.beginTime}
+            </if>
+            <if test="vo.endTime != null">
+                AND `result`.receivingTime &lt;= #{vo.endTime}
+                AND `result`.deliverTime &lt;= #{vo.endTime}
+            </if>
+        </where>
+        GROUP BY `result`.backup1
+    </select>
+</mapper>

@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.WarehouseMapper">
+    <select id="InventoryIocationListVoPage" resultType="org.jeecg.modules.cable.vo.InventoryIocationListVo">
+        SELECT
+        CONCAT( p.id,'_', p.type ) as id ,
+        p.plan_type,
+        warehouse.`name` as warehouseName,
+        warehouse.id as warehouse_id,
+        p.project_no,
+        p.project_name,
+        m.serial,
+        m.`name` as materialName,
+        m.supplier,
+        sum(
+        IF
+        (
+        storages.type = 1,
+        IFNULL( accomplish_num, 0 ),
+        - IFNULL( accomplish_num, 0 )
+        )
+        ) AS currentInventory,
+        m.unit
+        FROM
+        (
+        SELECT
+        id,
+        plan1.plan_type,
+        project_no,
+        project_name,
+        1 AS type,
+        num_receipts
+        FROM
+        plan1 UNION ALL
+        SELECT
+        id,
+        plan2.plan_type,
+        project_no,
+        NULL AS project_name,
+        2 AS type,
+        0 AS num_receipts
+        FROM
+        plan2 UNION ALL
+        SELECT
+        id,
+        plan3.plan_type,
+        project_no,
+        eng_name AS project_name,
+        3 AS type,
+        num AS num_receipts
+        FROM
+        plan3 UNION ALL
+        SELECT
+        id,
+        NULL AS plan_type,
+        project_no,
+        eng_name project_name,
+        4 AS type,
+        0 AS num_receipts
+        FROM
+        plan4
+        ) p
+        LEFT JOIN send_orders s ON s.plan_type = p.type
+        AND s.plan_id = p.id
+        LEFT JOIN (
+        SELECT
+        deliver_storage.id,
+        deliver_storage.send_orders_id,
+        deliver_storage.material_id,
+        deliver_storage.warehouse_id,
+        deliver_storage.storage_location_id,
+        deliver_storage.accomplish_num,
+        deliver_storage.accomplish_num_unit,
+        deliver_storage.accomplish_weight,
+        deliver_storage.accomplish_weight_unit,
+        deliver_storage.recycling_specifications,
+        deliver_storage.texture,
+        deliver_storage.recycling_situation,
+        deliver_storage.whether_complete,
+        deliver_storage.receipt_no,
+        deliver_storage.incomplete_description,
+        deliver_storage.state,
+        1 AS type
+        FROM
+        deliver_storage UNION ALL
+        SELECT
+        receiving_storage.id,
+        receiving_storage.send_orders_id,
+        receiving_storage.material_id,
+        receiving_storage.warehouse_id,
+        receiving_storage.storage_location_id,
+        receiving_storage.accomplish_num,
+        receiving_storage.accomplish_num_unit,
+        receiving_storage.accomplish_weight,
+        receiving_storage.accomplish_weight_unit,
+        receiving_storage.recycling_specifications,
+        receiving_storage.texture,
+        receiving_storage.recycling_situation,
+        receiving_storage.whether_complete,
+        receiving_storage.receipt_no,
+        receiving_storage.incomplete_description,
+        receiving_storage.state,
+        0 AS type
+        FROM
+        receiving_storage
+        ) storages ON storages.send_orders_id = s.id
+        AND s.operator_schema = storages.type
+        LEFT JOIN material m ON storages.material_id = m.id
+        LEFT JOIN warehouse ON warehouse.id = s.warehouse_id
+        <where>
+            <if test="inventoryIocationListVo.planType != null and inventoryIocationListVo.planType != ''">
+                AND p.plan_type LIKE concat('%',#{inventoryIocationListVo.planType},'%')
+            </if>
+            <if test="inventoryIocationListVo.projectNo!=null and inventoryIocationListVo.projectNo!=''">
+                AND p.project_no LIKE concat('%',#{inventoryIocationListVo.projectNo},'%')
+            </if>
+            <if test="inventoryIocationListVo.materialName != null and inventoryIocationListVo.materialName != ''">
+                AND m.`name` LIKE CONCAT('%',#{inventoryIocationListVo.materialName},'%')
+            </if>
+            <if test="inventoryIocationListVo.warehouseName!=null and inventoryIocationListVo.warehouseName!=''">
+                AND warehouse.`name` LIKE concat('%',#{inventoryIocationListVo.warehouseName},'%')
+            </if>
+            <if test="inventoryIocationListVo.serial!=null and inventoryIocationListVo.serial!=''">
+                AND m.serial LIKE concat('%',#{inventoryIocationListVo.serial},'%')
+            </if>
+        </where>
+        GROUP BY
+        storages.warehouse_id,
+        CONCAT( p.id,'_', p.type )
+        <!-- HAVING currentInventory &gt; 0 -->
+        ORDER BY s.task_time desc
+    </select>
+
+    <select id="keweiQuery" resultType="org.jeecg.modules.cable.vo.KuweiVo">
+    SELECT
+    storages.storage_location_id ,
+    storage_location.storage_location_name,
+    sum(
+    IF
+    (
+    storages.type = 1,
+    IFNULL( accomplish_num, 0 ),
+    - IFNULL( accomplish_num, 0 )
+    )
+    ) AS currentInventory
+    FROM
+    send_orders s
+    LEFT JOIN (
+    SELECT
+    deliver_storage.id,
+    deliver_storage.send_orders_id,
+    deliver_storage.material_id,
+    deliver_storage.warehouse_id,
+    deliver_storage.storage_location_id,
+    deliver_storage.accomplish_num,
+    deliver_storage.accomplish_num_unit,
+    deliver_storage.accomplish_weight,
+    deliver_storage.accomplish_weight_unit,
+    deliver_storage.recycling_specifications,
+    deliver_storage.texture,
+    deliver_storage.recycling_situation,
+    deliver_storage.whether_complete,
+    deliver_storage.receipt_no,
+    deliver_storage.incomplete_description,
+    deliver_storage.state,
+    1 AS type
+    FROM
+    deliver_storage
+    WHERE
+    deliver_storage.state = 1 UNION ALL
+    SELECT
+    receiving_storage.id,
+    receiving_storage.send_orders_id,
+    receiving_storage.material_id,
+    receiving_storage.warehouse_id,
+    receiving_storage.storage_location_id,
+    receiving_storage.accomplish_num,
+    receiving_storage.accomplish_num_unit,
+    receiving_storage.accomplish_weight,
+    receiving_storage.accomplish_weight_unit,
+    receiving_storage.recycling_specifications,
+    receiving_storage.texture,
+    receiving_storage.recycling_situation,
+    receiving_storage.whether_complete,
+    receiving_storage.receipt_no,
+    receiving_storage.incomplete_description,
+    receiving_storage.state,
+    0 AS type
+    FROM
+    receiving_storage
+    WHERE
+    receiving_storage.state = 1
+    ) storages ON storages.send_orders_id = s.id
+    LEFT JOIN storage_location ON storages.storage_location_id = storage_location.id
+    where s.plan_type = #{type} and s.plan_id = #{id} AND storages.warehouse_id = #{warehouseId}
+    GROUP BY
+    storages.storage_location_id
+  </select>
+
+    <!-- 库存详情查询 -->
+    <select id="selectInfo" resultType="org.jeecg.modules.cable.vo.InventoryVo">
+        SELECT
+        DISTINCT
+        p.pAssetNo AS 'pAssetNo',
+        p.proTheorderNo AS 'proTheorderNo',
+        iy.project_no AS 'projectNo',
+        p.projectName AS 'projectName',
+        ml.NAME AS 'materialName',
+        we.NAME AS 'warehouseName',
+        sn.storage_location_name AS 'storageLocationName',
+        p.type AS 'pType',
+        iy.inventory_quantity,
+        iy.backup3 AS dw,
+        iy.backup5 AS availableWeight
+        FROM
+        inventory iy
+        LEFT JOIN (
+        SELECT
+        p1.id,
+        '1' AS type,
+        p1.asset_no AS pAssetNo,
+        null AS proTheorderNo,
+        p1.project_name AS projectName
+        FROM
+        plan1 AS p1 UNION ALL
+        SELECT
+        p2.id,
+        '2' AS type,
+        p2.asset_no AS pAssetNo,
+        null AS proTheorderNo,
+        p2.site AS projectName
+        FROM
+        plan2 AS p2 UNION ALL
+        SELECT
+        p3.id,
+        '3' AS type,
+        null AS pAssetNo,
+        p3.pro_theorder_no AS proTheorderNo,
+        p3.eng_name AS projectName
+        FROM
+        plan3 AS p3 UNION ALL
+        SELECT
+        p4.id,
+        '4' AS type,
+        null AS pAssetNo,
+        null AS proTheorderNo,
+        p4.eng_name AS projectName
+        FROM
+        plan4 AS p4
+        ) AS p ON iy.backup1 = p.id
+        AND iy.backup2 = p.type
+        LEFT JOIN material ml ON iy.material_id = ml.id
+        LEFT JOIN warehouse we ON iy.warehouse_id = we.id
+        LEFT JOIN storage_location sn ON iy.storage_location_id = sn.id
+        <where>
+            we.type = 1
+            <if test="null != inventoryVo.id and '' != inventoryVo.id">
+                AND iy.id = #{inventoryVo.id}
+            </if>
+            <if test="null != inventoryVo.serial and '' != inventoryVo.serial">
+                AND ml.serial = #{inventoryVo.serial}
+            </if>
+            <if test="null != inventoryVo.recyclingSpecifications and '' != inventoryVo.recyclingSpecifications">
+                AND (iy.recycling_specifications = #{inventoryVo.recyclingSpecifications}
+                OR ml.NAME = #{inventoryVo.recyclingSpecifications})
+            </if>
+            <if test="null != inventoryVo.pAssetNo and '' != inventoryVo.pAssetNo">
+                AND p.pAssetNo LIKE CONCAT('%',#{inventoryVo.pAssetNo},'%')
+            </if>
+            <if test="null != inventoryVo.projectNo and '' != inventoryVo.projectNo">
+                AND iy.project_no LIKE CONCAT('%',#{inventoryVo.projectNo},'%')
+            </if>
+            <if test="null != inventoryVo.materialName and '' != inventoryVo.materialName">
+                AND (
+                ml.backup1 LIKE CONCAT('%',#{inventoryVo.materialName},'%') OR ml.NAME LIKE CONCAT('%',#{inventoryVo.materialName},'%')
+                )
+            </if>
+            <if test="null != inventoryVo.warehouseName and '' != inventoryVo.warehouseName">
+                AND we.NAME LIKE CONCAT('%',#{inventoryVo.warehouseName},'%')
+            </if>
+            <if test="null != inventoryVo.storageLocationName and '' != inventoryVo.storageLocationName">
+                AND sn.storage_location_name LIKE CONCAT('%',#{inventoryVo.storageLocationName},'%')
+            </if>
+            <if test="null != inventoryVo.proTheorderNo and '' != inventoryVo.proTheorderNo">
+                AND p.proTheorderNo = #{inventoryVo.proTheorderNo}
+            </if>
+        </where>
+        ORDER BY iy.create_time DESC,ml.create_time DESC
+    </select>
+
+    <!-- 库存查询 -->
+    <select id="selectPageinventory" resultType="org.jeecg.modules.cable.vo.InventoryVo">
+        SELECT
+        iy.id,
+        ml.serial AS serial,
+        ml.NAME materialName,
+        SUM(iy.inventory_quantity) AS inventory_quantity,
+        iy.backup3 AS dw,
+        ml.ations AS ations,
+        SUM(iy.backup5) AS availableWeight
+        FROM
+        inventory AS iy
+        LEFT JOIN material AS ml ON iy.material_id = ml.id
+        LEFT JOIN warehouse AS we ON iy.warehouse_id = we.id
+        WHERE
+        we.type = 1
+        <if test="null != inventoryVo.materialName and '' != inventoryVo.materialName">
+            AND ml.name LIKE CONCAT('%',#{inventoryVo.materialName},'%')
+        </if>
+        <if test="null != inventoryVo.serial and '' != inventoryVo.serial">
+            AND ml.serial LIKE CONCAT('%',#{inventoryVo.serial},'%')
+        </if>
+        <if test="null != inventoryVo.ations and '' != inventoryVo.ations">
+            AND ml.ations LIKE CONCAT('%',#{inventoryVo.ations},'%')
+        </if>
+        GROUP BY iy.recycling_specifications,ml.id
+        ORDER BY iy.create_time DESC,ml.create_time DESC
+    </select>
+
+    <select id="kewei" resultType="org.jeecg.modules.cable.vo.KuweiVo">
+        <foreach item="id" collection="ids" separator="union all">
+            SELECT inventory.inventory_quantity as currentInventory,storage_location.storage_location_name as
+            storageLocationName from inventory
+            left join storage_location on inventory.storage_location_id=storage_location.id
+            where inventory.id=#{id}
+        </foreach>
+    </select>
+</mapper>

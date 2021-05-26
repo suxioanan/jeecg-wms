@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.Plan4Mapper">
+    <!-- 计划2批量派单出库数据 -->
+    <select id="idsqueryChuList" resultType="org.jeecg.modules.cable.vo.SendOrdersVo">
+        SELECT
+        p.id,
+        p.project_no,
+        p.eng_name AS project_name,
+        iy.recycling_specifications AS wasteMaterialText,
+        iy.warehouse_id,
+        iy.storage_location_id,
+        wa.name AS wname,
+        st.storage_location_name AS storagename,
+        iy.backup5 AS inventory_quantity
+        FROM plan4 p
+        LEFT JOIN inventory iy ON p.id = iy.backup1 AND iy.backup2 = 4
+        LEFT JOIN warehouse wa ON iy.warehouse_id = wa.id
+        LEFT JOIN storage_location st ON iy.storage_location_id = st.id
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <!-- 查询计划4批量出库完单的数据 -->
+    <select id="getPlan4ReceivingStorageList" resultType="org.jeecg.modules.cable.vo.Plan4Vo">
+        SELECT
+        p.id,
+        p.project_no,
+        p.eng_name,
+        p.cable_name,
+        i.recycling_specifications as cableCross,
+        i.backup5 AS inventory_quantity,
+        w.id as warehouseId,
+        w.`name` as warehouseName,
+        s.id as storageLocationId,
+        s.storage_location_name
+        FROM
+        plan4 p
+        LEFT JOIN inventory i ON p.id = i.backup1 AND i.backup2 = 4
+        LEFT JOIN warehouse w ON i.warehouse_id = w.id
+        LEFT JOIN storage_location s ON i.storage_location_id = s.id
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <!-- 查询计划4批量入库完单的数据 -->
+    <select id="getPlan4DeliverStorage" resultType="org.jeecg.modules.cable.entity.Plan4">
+        SELECT
+        p.id,
+        p.project_no,
+        p.eng_name,
+        CONCAT(p.voltage_grade,' ',p.cable_cross) as cableCross,
+        p.cable_name,
+        p.sampling_length
+        FROM
+        plan4 p
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="pageList" resultType="org.jeecg.modules.cable.entity.Plan4">
+        SELECT * FROM plan4
+        <where>
+            <if test="null != plan4.projectNo and '' != plan4.projectNo">
+                AND plan4.project_no LIKE CONCAT('%',#{plan4.projectNo},'%')
+            </if>
+            <if test="null != plan4.engName and '' != plan4.engName">
+                AND plan4.eng_name LIKE CONCAT('%',#{plan4.engName},'%')
+            </if>
+            <if test="null != plan4.cableName and '' != plan4.cableName">
+                AND plan4.cable_name LIKE CONCAT('%',#{plan4.cableName},'%')
+            </if>
+            <if test="null != plan4.completeState">
+                AND plan4.complete_state = #{plan4.completeState}
+            </if>
+        </where>
+        ORDER BY complete_state ASC,update_time DESC,send_orders_state ASC
+    </select>
+
+    <!-- 导出计划表4数据 -->
+    <select id="exportPlan4" resultType="org.jeecg.modules.cable.dto.Plan4Im">
+        SELECT
+        plan4.id,
+        plan4.eng_name,
+        plan4.project_no,
+        plan4.cable_name,
+        plan4.voltage_grade,
+        plan4.cable_cross,
+        plan4.sampling_length,
+        plan4.sampling_date,
+        plan4.sampling_addres,
+        plan4.construc,
+        plan4.construc_contact,
+        plan4.team,
+        plan4.team_contact,
+        plan4.`full`,
+        plan4.note,
+        plan4.feedback,
+        sum( deliver_storage.accomplish_num ) AS deliver_num,
+        deliver_storage.recycling_specifications,
+        deliver_storage.texture,
+        sum( deliver_storage.deliver_time ) AS deliver_time,
+        deliver_storage.deliver_time,
+        deliver_storage.construction_team,
+        deliver_storage.state,
+        deliver_storage.receipt_no,
+        deliver_storage.Incomplete_description,
+        storage_location.storage_location_name,
+        max( CONCAT( deliver_storage.deliver_time, '_', warehouse0.`name` )) AS warehouse0Name,
+        max( CONCAT( receiving_storage.receiving_time, '_', warehouse1.`name` ) ) AS warehouse1Name
+        FROM
+        plan4
+        LEFT JOIN send_orders AS send_orders0 ON ( send_orders0.plan_id = plan4.id AND send_orders0.plan_type = 4 )
+        LEFT JOIN send_orders AS send_orders1 ON ( send_orders1.plan_id = plan4.id AND send_orders1.plan_type = 4 )
+        LEFT JOIN deliver_storage ON deliver_storage.send_orders_id = send_orders1.id
+        LEFT JOIN storage_location ON deliver_storage.storage_location_id = storage_location.id
+        LEFT JOIN receiving_storage ON receiving_storage.send_orders_id = send_orders0.id
+        LEFT JOIN warehouse as warehouse0 ON warehouse0.id = send_orders0.warehouse_id
+        LEFT JOIN warehouse as warehouse1 ON warehouse1.id = send_orders1.warehouse_id
+        <where>
+            <if test="null != plan4.projectNo and '' != plan4.projectNo">
+                AND plan4.project_no LIKE CONCAT('%',#{plan4.projectNo},'%')
+            </if>
+            <if test="null != plan4.engName and '' != plan4.engName">
+                AND plan4.eng_name LIKE CONCAT('%',#{plan4.engName},'%')
+            </if>
+            <if test="null != plan4.cableName and '' != plan4.cableName">
+                AND plan4.cable_name LIKE CONCAT('%',#{plan4.cableName},'%')
+            </if>
+            <if test="null != plan4.completeState and '' != plan4.completeState">
+                AND plan4.complete_state = #{plan4.completeState}
+            </if>
+            <if test="null != beginTime and '' != beginTime">
+                AND plan4.create_time <![CDATA[>=]]> #{beginTime}
+            </if>
+            <if test="null != endTime and '' != endTime">
+                AND plan4.create_time <![CDATA[<=]]> #{endTime}
+            </if>
+        </where>
+        GROUP BY
+        plan4.id
+    </select>
+
+    <!-- 导出计划表4汇总 -->
+    <select id="exportFeedbackSummary" resultType="org.jeecg.modules.cable.vo.Plan4Vo">
+        SELECT
+        plan4.id,
+        plan4.project_no,
+        plan4.cable_name,
+        ds.recycling_specifications,
+        ds.texture,
+        IFNULL(SUM(ds.accomplish_num),0) as length,
+        IFNULL(SUM(ds.accomplish_weight),0) as weight
+        FROM
+        plan4
+        LEFT JOIN deliver_storage ds ON ( plan4.id = ds.plan_id AND ds.plan_type = 4 )
+        <where>
+            <if test="null != plan4Vo.beginTime and '' != plan4Vo.beginTime">
+                AND ds.deliver_time <![CDATA[>=]]> #{plan4Vo.beginTime}
+            </if>
+            <if test="null != plan4Vo.endTime and '' != plan4Vo.endTime">
+                AND ds.deliver_time <![CDATA[<=]]> #{plan4Vo.endTime}
+            </if>
+        </where>
+        GROUP BY plan4.project_no,ds.recycling_specifications,ds.texture
+    </select>
+
+    <!-- 计划表4电缆统计 -->
+    <select id="selectCable" resultType="org.jeecg.modules.cable.vo.Plan4Vo">
+        SELECT ds1.recycling_specifications as voltage_grade,eng_name,ds1.texture,Sum(ds1.accomplish_num) length,Sum(ds1.accomplish_weight) weight,Sum(rs1.accomplish_weight) retrieval_weight
+        FROM plan4 p1
+        INNER JOIN deliver_storage ds1 on p1.id=ds1.plan_id
+        INNER JOIN receiving_storage rs1 on p1.id=rs1.plan_id
+        <where>
+            p1.plan_type=#{planType}
+            <if test="null != voltageGrade and '' != voltageGrade">
+                AND ds1.recycling_specifications like CONCAT('%',#{voltageGrade},'%')
+                OR ds1.texture like CONCAT('%',#{voltageGrade},'%')
+            </if>
+            <if test="null != beginTime and '' != beginTime">
+                AND ds1.deliver_time <![CDATA[>=]]> #{beginTime}
+                AND rs1.receiving_time <![CDATA[>=]]> #{beginTime}
+            </if>
+            <if test="null != endTime and '' != endTime">
+                AND ds1.deliver_time <![CDATA[<=]]> #{endTime}
+                AND rs1.receiving_time <![CDATA[<=]]> #{endTime}
+            </if>
+        </where>
+
+        GROUP BY ds1.recycling_specifications
+    </select>
+
+    <!-- 导出汇总 -->
+    <select id="exportPlan3" resultType="org.jeecg.modules.cable.vo.Plan4ExcelVo">
+        SELECT ds1.recycling_specifications as voltage_grade,eng_name,ds1.texture,Sum(ds1.accomplish_num) length,Sum(ds1.accomplish_weight) weight,Sum(rs1.accomplish_weight) retrieval_weight
+        FROM plan4 p1
+        INNER JOIN deliver_storage ds1 on p1.id=ds1.plan_id
+        INNER JOIN receiving_storage rs1 on p1.id=rs1.plan_id
+        <where>
+            p1.plan_type='电缆'
+            <if test="null != plan4ExcelVo.beginTime and '' != plan4ExcelVo.beginTime">
+                AND ds1.deliver_time <![CDATA[>=]]> #{plan4ExcelVo.beginTime}
+                AND rs1.receiving_time <![CDATA[>=]]> #{plan4ExcelVo.beginTime}
+            </if>
+            <if test="null != plan4ExcelVo.endTime and '' != plan4ExcelVo.endTime">
+                AND ds1.deliver_time <![CDATA[<=]]> #{plan4ExcelVo.endTime}
+                AND rs1.receiving_time <![CDATA[<=]]> #{plan4ExcelVo.endTime}
+            </if>
+        </where>
+        GROUP BY ds1.recycling_specifications
+    </select>
+</mapper>

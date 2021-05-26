@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.WXMapper">
+    <!-- 接任务 -->
+    <select id="pickUpTheTask" resultType="org.jeecg.modules.cable.vo.PickUpTheTaskVo">
+        SELECT
+        *
+        FROM
+        (
+        SELECT
+        p.id,
+        so.id AS sendOrderId,
+        so.operator_schema AS operatorSchema,
+        p.plan_type AS planType,
+        p.project_name AS projectName,
+        p.disposal_way AS disposalWay,
+        GROUP_CONCAT( v.license ) AS license,
+        p.engineering_address AS address,
+        p.the_location_text AS theLocationText,
+        p.deliver_time AS deliverTime,
+        p.complete_state AS completeState,
+        m.id AS materialId,
+        m.serial AS materialSerial,
+        m.`name` AS materialName,
+        m.unit AS materialUnit,
+        w.id AS warehouseId,
+        w.`name` AS wareName,
+        sl.id AS storageLocationId,
+        sl.storage_location_name AS storageLocationName
+        FROM
+        plan1 p
+        LEFT JOIN send_orders so ON so.plan_id = p.id
+        LEFT JOIN send_orders_subtabulation sos ON sos.send_orders_id = so.id
+        LEFT JOIN vehicle v ON v.license = sos.type_id
+        LEFT JOIN material m ON p.waste_material_code = m.serial
+        LEFT JOIN warehouse w ON so.warehouse_id = w.id
+        LEFT JOIN storage_location sl ON so.storage_location_id = sl.id
+        WHERE
+        sos.distribution_type = 0
+        GROUP BY
+        p.id,
+        so.id UNION ALL
+        SELECT
+        p.id,
+        so.id AS sendOrderId,
+        so.operator_schema AS operatorSchema,
+        p.plan_type AS planType,
+        p.equipment_name AS projectName,
+        p.disposal_way AS disposalWay,
+        GROUP_CONCAT( v.license ) AS license,
+        p.address AS address,
+        p.site AS theLocationText,
+        NULL AS deliverTime,
+        p.complete_state AS completeState,
+        NULL AS materialId,
+        NULL AS materialSerial,
+        NULL AS materialName,
+        NULL AS materialUnit,
+        w.id AS warehouseId,
+        w.`name` AS wareName,
+        sl.id AS storageLocationId,
+        sl.storage_location_name AS storageLocationName
+        FROM
+        plan2 p
+        LEFT JOIN send_orders so ON so.plan_id = p.id
+        LEFT JOIN send_orders_subtabulation sos ON sos.send_orders_id = so.id
+        LEFT JOIN vehicle v ON v.license = sos.type_id
+        LEFT JOIN warehouse w ON so.warehouse_id = w.id
+        LEFT JOIN storage_location sl ON so.storage_location_id = sl.id
+        WHERE
+        sos.distribution_type = 0
+        GROUP BY
+        p.id,
+        so.id UNION ALL
+        SELECT
+        p.id,
+        so.id AS sendOrderId,
+        so.operator_schema AS operatorSchema,
+        p.plan_type AS planType,
+        p.eng_name AS projectName,
+        CASE
+        so.operator_schema
+        WHEN '1' THEN
+        '入库'
+        WHEN '2' THEN
+        '出库' ELSE '未知'
+        END AS disposalWay,
+        GROUP_CONCAT( v.license ) AS license,
+        p.address AS address,
+        NULL AS theLocationText,
+        NULL AS deliverTime,
+        p.complete_state AS completeState,
+        m.id AS materialId,
+        m.serial AS materialSerial,
+        m.`name` AS materialName,
+        m.unit AS materialUnit,
+        w.id AS warehouseId,
+        w.`name` AS wareName,
+        sl.id AS storageLocationId,
+        sl.storage_location_name AS storageLocationName
+        FROM
+        plan3 p
+        LEFT JOIN send_orders so ON so.plan_id = p.id
+        LEFT JOIN send_orders_subtabulation sos ON sos.send_orders_id = so.id
+        LEFT JOIN vehicle v ON v.license = sos.type_id
+        LEFT JOIN material m ON p.material_code = m.serial
+        LEFT JOIN warehouse w ON so.warehouse_id = w.id
+        LEFT JOIN storage_location sl ON so.storage_location_id = sl.id
+        WHERE
+        sos.distribution_type = 0
+        GROUP BY
+        p.id,
+        so.id UNION ALL
+        SELECT
+        p.id,
+        so.id AS sendOrderId,
+        so.operator_schema AS operatorSchema,
+        '电缆' AS planType,
+        p.eng_name AS projectName,
+        CASE
+        so.operator_schema
+        WHEN '1' THEN
+        '入库'
+        WHEN '2' THEN
+        '出库' ELSE '未知'
+        END AS disposalWay,
+        GROUP_CONCAT( v.license ) AS license,
+        p.sampling_addres AS address,
+        NULL AS theLocationText,
+        p.sampling_date AS deliverTime,
+        p.complete_state AS completeState,
+        NULL AS materialId,
+        NULL AS materialSerial,
+        NULL AS materialName,
+        NULL AS materialUnit,
+        w.id AS warehouseId,
+        w.`name` AS wareName,
+        sl.id AS storageLocationId,
+        sl.storage_location_name AS storageLocationName
+        FROM
+        plan4 p
+        LEFT JOIN send_orders so ON so.plan_id = p.id
+        LEFT JOIN send_orders_subtabulation sos ON sos.send_orders_id = so.id
+        LEFT JOIN vehicle v ON v.license = sos.type_id
+        LEFT JOIN warehouse w ON so.warehouse_id = w.id
+        LEFT JOIN storage_location sl ON so.storage_location_id = sl.id
+        WHERE
+        sos.distribution_type = 0
+        GROUP BY
+        p.id,
+        so.id
+        ) temp
+        <where>
+            <if test="null != completeState">
+                temp.completeState = #{completeState}
+            </if>
+        </where>
+    </select>
+
+    <!-- 入库处置 -->
+    <insert id="deliverStorage">
+        INSERT INTO deliver_storage
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="null != send_orders_id">
+                send_orders_id,
+            </if>
+            <if test="null != material_id">
+                material_id,
+            </if>
+            <if test="null != warehouse_id">
+                warehouse_id,
+            </if>
+            <if test="null != storage_location_id">
+                storage_location_id,
+            </if>
+            <if test="null != accomplish_num">
+                accomplish_num,
+            </if>
+            <if test="null != accomplish_num_unit">
+                accomplish_num_unit,
+            </if>
+            <if test="null != state">
+                state,
+            </if>
+            <if test="null != scene_situation">
+                scene_situation,
+            </if>
+            <if test="null != anomalous_cause">
+                anomalous_cause,
+            </if>
+            <if test="null != scene_photos">
+                scene_photos,
+            </if>
+            <if test="null != receipt_photos">
+                receipt_photos,
+            </if>
+            <if test="null != deliver_time">
+                deliver_time,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="null != vo.sendOrderId">
+                #{vo.sendOrderId},
+            </if>
+            <if test="null != vo.materialId">
+                #{vo.materialId},
+            </if>
+            <if test="null != vo.warehouseId">
+                #{vo.warehouseId},
+            </if>
+            <if test="null != vo.storageLocationId">
+                #{vo.storageLocationId},
+            </if>
+            <if test="null != vo.accomplishNum">
+                #{vo.accomplishNum},
+            </if>
+            <if test="null != vo.unit">
+                #{vo.unit},
+            </if>
+            <if test="null != vo.state">
+                #{vo.state},
+            </if>
+            <if test="null != vo.sceneSituation">
+                #{vo.sceneSituation},
+            </if>
+            <if test="null != vo.anomalousCause">
+                #{vo.anomalousCause},
+            </if>
+            <if test="null != vo.scenePhotos">
+                #{vo.scenePhotos},
+            </if>
+            <if test="null != vo.receiptPhotos">
+                #{vo.receiptPhotos},
+            </if>
+            <if test="null != vo.deliverTime">
+                #{vo.deliverTime},
+            </if>
+        </trim>
+    </insert>
+
+    <!-- 出库处置 -->
+    <insert id="receivingStorage">
+        INSERT INTO receiving_storage
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="null != send_orders_id">
+                send_orders_id,
+            </if>
+            <if test="null != material_id">
+                material_id,
+            </if>
+            <if test="null != warehouse_id">
+                warehouse_id,
+            </if>
+            <if test="null != storage_location_id">
+                storage_location_id,
+            </if>
+            <if test="null != accomplish_num">
+                accomplish_num,
+            </if>
+            <if test="null != accomplish_num_unit">
+                accomplish_num_unit,
+            </if>
+            <if test="null != state">
+                state,
+            </if>
+            <if test="null != scene_situation">
+                scene_situation,
+            </if>
+            <if test="null != anomalous_cause">
+                anomalous_cause,
+            </if>
+            <if test="null != scene_photos">
+                scene_photos,
+            </if>
+            <if test="null != receipt_photos">
+                receipt_photos,
+            </if>
+            <if test="null != deliver_time">
+                deliver_time,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="null != vo.sendOrderId">
+                #{vo.sendOrderId},
+            </if>
+            <if test="null != vo.materialId">
+                #{vo.materialId},
+            </if>
+            <if test="null != vo.warehouseId">
+                #{vo.warehouseId},
+            </if>
+            <if test="null != vo.storageLocationId">
+                #{vo.storageLocationId},
+            </if>
+            <if test="null != vo.accomplishNum">
+                #{vo.accomplishNum},
+            </if>
+            <if test="null != vo.unit">
+                #{vo.unit},
+            </if>
+            <if test="null != vo.state">
+                #{vo.state},
+            </if>
+            <if test="null != vo.sceneSituation">
+                #{vo.sceneSituation},
+            </if>
+            <if test="null != vo.anomalousCause">
+                #{vo.anomalousCause},
+            </if>
+            <if test="null != vo.scenePhotos">
+                #{vo.scenePhotos},
+            </if>
+            <if test="null != vo.receiptPhotos">
+                #{vo.receiptPhotos},
+            </if>
+            <if test="null != vo.deliverTime">
+                #{vo.deliverTime},
+            </if>
+        </trim>
+    </insert>
+</mapper>

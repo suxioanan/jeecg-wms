@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.DeliverStorageMapper">
+    <!-- 完单查询 -->
+    <select id="selectPlan2DS" resultType="org.jeecg.modules.cable.vo.PlanVo">
+        SELECT * FROM
+        (
+        SELECT
+        ds.id,
+        so.operator_schema,
+        DATE_FORMAT( so.create_time, '%Y-%m-%d' ) AS send_orders_time,
+        DATE_FORMAT( so.task_time, '%Y-%m-%d' ) AS accomplish_time,
+        ds.state,
+        wa.`name` AS warehouse_name,
+        ds.accomplish_num,
+        ds.accomplish_num_unit,
+        ds.receipt_photos AS receipt_photoss,
+        ds.scene_situation,
+        ds.anomalous_cause,
+        ds.scene_photos,
+        ds.annotation,
+        iy.backup5 AS availableWeight
+        FROM
+        deliver_storage AS ds
+        LEFT JOIN send_orders AS so ON so.id = ds.send_orders_id
+        LEFT JOIN warehouse AS wa ON wa.id = ds.warehouse_id
+        LEFT JOIN inventory AS iy ON so.plan_id = iy.backup1
+        AND iy.backup2 = so.plan_type
+        WHERE so.plan_type = #{planType} AND so.project_no = #{projectNo} AND operator_schema = 1
+        <if test="sendOrdersId!=null and sendOrdersId!=''">
+            AND ds.send_orders_id = #{sendOrdersId}
+        </if>
+        AND so.plan_id = #{id}
+        UNION ALL
+        SELECT
+        rs.id,
+        so.operator_schema,
+        DATE_FORMAT( so.create_time, '%Y-%m-%d' ) AS send_orders_time,
+        DATE_FORMAT( so.task_time, '%Y-%m-%d' ) AS accomplish_time,
+        rs.state,
+        wa.`name` AS warehouse_name,
+        rs.accomplish_num,
+        rs.accomplish_num_unit,
+        rs.receipt_photos,
+        rs.scene_situation,
+        rs.anomalous_cause,
+        rs.scene_abnormal_photos AS scene_photos,
+        rs.annotation,
+        iy.backup5 AS availableWeight
+        FROM
+        receiving_storage AS rs
+        LEFT JOIN send_orders AS so ON so.id = rs.send_orders_id
+        LEFT JOIN warehouse AS wa ON wa.id = rs.warehouse_id
+        LEFT JOIN inventory AS iy ON so.plan_id = iy.backup1
+        AND iy.backup2 = so.plan_type
+        WHERE so.plan_type = #{planType} AND so.project_no = #{projectNo} AND operator_schema = 0
+        <if test="sendOrdersId!=null and sendOrdersId!=''">
+            AND rs.send_orders_id = #{sendOrdersId}
+        </if>
+        AND so.plan_id = #{id}
+        ) AS d
+        GROUP BY d.id
+        ORDER BY d.state ASC,d.accomplish_time DESC
+    </select>
+
+    <update id="updateDS">
+        UPDATE
+        deliver_storage
+        SET
+        accomplish_num = #{PlanVo.accomplishNum},
+        accomplish_num_unit=#{PlanVo.accomplishNumUnit},
+        state=1,
+        scene_situation=#{PlanVo.sceneSituation},
+        anomalous_cause=#{PlanVo.anomalousCause},
+        scene_photos=#{PlanVo.scenePhotos},
+        receipt_photos=#{PlanVo.receiptPhotos},
+        deliver_time=#{PlanVo.handoverDate},
+        annotation=#{PlanVo.annotation}
+        <if test="PlanVo.accomplishVolume!=null">
+            ,accomplish_volume = #{PlanVo.accomplishVolume}
+        </if>
+        <if test="PlanVo.warehouseId!=null">
+            ,warehouse_id = #{PlanVo.warehouseId}
+        </if>
+        <if test="PlanVo.storageLocationId!=null">
+            ,storage_location_id = #{PlanVo.storageLocationId}
+        </if>
+        <if test="PlanVo.accomplishWeight!=null">
+            ,accomplish_weight = #{PlanVo.accomplishWeight}
+        </if>
+        <if test="PlanVo.accomplishWeightUnit!=null">
+            ,accomplish_weight_unit = #{PlanVo.accomplishWeightUnit}
+        </if>
+        <if test="PlanVo.recyclingSpecifications!=null">
+            ,recycling_specifications = #{PlanVo.recyclingSpecifications}
+        </if>
+        <if test="PlanVo.texture!=null">
+            ,texture = #{PlanVo.texture}
+        </if>
+        <if test="PlanVo.recyclingSituation!=null">
+            ,recycling_situation = #{PlanVo.recyclingSituation}
+        </if>
+        <if test="PlanVo.whetherComplete!=null">
+            ,whether_complete = #{PlanVo.whetherComplete}
+        </if>
+        <if test="PlanVo.receiptNo!=null">
+            ,receipt_no = #{PlanVo.receiptNo}
+        </if>
+        <if test="PlanVo.incompleteDescription!=null">
+            ,incomplete_description = #{PlanVo.incompleteDescription}
+        </if>
+        <if test="PlanVo.constructionTeam!=null">
+            ,construction_team = #{PlanVo.constructionTeam}
+        </if>
+        <if test="PlanVo.linkman!=null">
+            ,linkman = #{PlanVo.linkman}
+        </if>
+        <if test="PlanVo.phone!=null">
+            ,phone = #{PlanVo.phone}
+        </if>
+        WHERE
+        id = #{PlanVo.id}
+    </update>
+</mapper>

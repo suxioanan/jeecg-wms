@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.Plan1Mapper">
+    <!-- 计划1批量派单出库数据 -->
+    <select id="idsqueryChuList" resultType="org.jeecg.modules.cable.vo.SendOrdersVo">
+        SELECT
+        p.id,
+        p.project_no,
+        p.project_name,
+        ml.`name` AS wasteMaterialText,
+        iy.warehouse_id,
+        iy.storage_location_id,
+        wa.name AS wname,
+        st.storage_location_name AS storagename,
+        iy.inventory_quantity
+        FROM plan1 p
+        LEFT JOIN material ml ON p.waste_material_code = ml.serial
+        LEFT JOIN inventory iy ON (ml.id = iy.material_id AND p.project_no = iy.project_no AND p.id = iy.backup1 AND
+        iy.backup2 = 1) OR (p.asset_no = iy.asset_no )
+        LEFT JOIN warehouse wa ON iy.warehouse_id = wa.id
+        LEFT JOIN storage_location st ON iy.storage_location_id = st.id
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <!-- 查询计划1批量出库完单的数据 -->
+    <select id="getPlan1ReceivingStorageList" resultType="org.jeecg.modules.cable.vo.Plan1Vo">
+        SELECT
+        p.id,
+        p.project_no,
+        p.project_name,
+        p.waste_material_text,
+        p.asset_no,
+        iy.inventory_quantity,
+        w.id AS warehouseId,
+        w.`name` AS warehouseName,
+        s.id AS storageLocationId,
+        s.storage_location_name
+        FROM
+        plan1 p
+        LEFT JOIN material ml ON p.waste_material_code = ml.serial
+        LEFT JOIN inventory iy ON ( p.project_no = iy.project_no AND ml.id = iy.material_id AND p.asset_no = iy.asset_no
+        AND p.id = iy.backup1 AND iy.backup2 = 1)
+        LEFT JOIN warehouse w ON iy.warehouse_id = w.id
+        LEFT JOIN storage_location s ON iy.storage_location_id = s.id
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        GROUP BY p.id
+    </select>
+
+    <!-- 查询计划1批量入库完单的数据 -->
+    <select id="getPlan1DeliverStorage" resultType="org.jeecg.modules.cable.entity.Plan1">
+        SELECT
+        p.id,
+        p.project_no,
+        p.project_name,
+        p.waste_material_text,
+        p.asset_no,
+        p.num_receipts
+        FROM
+        plan1 p
+        WHERE p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="pageList" resultType="org.jeecg.modules.cable.entity.Plan1">
+        SELECT * FROM plan1
+        <where>
+            <if test="plan1Vo.planType!=null">
+                AND plan_type = #{plan1Vo.planType}
+            </if>
+            <if test="plan1Vo.itemSlip!=null">
+                AND item_slip LIKE concat('%',#{plan1Vo.itemSlip},'%')
+            </if>
+            <if test="plan1Vo.itemSlipType!=null">
+                AND item_slip_type LIKE concat('%',#{plan1Vo.itemSlipType},'%')
+            </if>
+            <if test="plan1Vo.projectNo!=null">
+                AND project_no LIKE concat('%',#{plan1Vo.projectNo},'%')
+            </if>
+            <if test="plan1Vo.completeState!=null">
+                AND complete_state = #{plan1Vo.completeState}
+            </if>
+            <if test="plan1Vo.dateBegin!=null">
+                AND plans_complete_time &gt;= #{plan1Vo.dateBegin}
+            </if>
+            <if test="plan1Vo.dateEnd!=null">
+                AND plans_complete_time &lt;= #{plan1Vo.dateEnd}
+            </if>
+        </where>
+        ORDER BY complete_state ASC,update_time DESC,send_orders_state ASC
+    </select>
+
+    <select id="StorageLocationListVoPage" resultType="org.jeecg.modules.cable.vo.StorageLocationListVo">
+         SELECT
+            s.storage_location_name,
+            COUNT(1) AS sum
+        FROM
+            storage_location AS s
+            LEFT join inventory As i on i.warehouse_id=s.warehouse_id
+            LEFT JOIN plan1 AS p ON p.project_no = i.project_no
+         where i.project_no=#{storageLocationListVo.projectNo}
+        GROUP BY
+            s.warehouse_id
+    </select>
+
+    <!-- 导出 plan1 bai 2020/9/7 -->
+    <select id="exportPlan1" resultType="org.jeecg.modules.cable.dto.Plan1Im">
+        SELECT
+        p.id,
+        p.item_slip,
+        p.item_slip_no,
+        p.item_slip_type,
+        p.business_type,
+        p.delete_logo,
+        p.the_factory,
+        p.factory_text,
+        p.disposal_way,
+        p.the_location,
+        p.the_location_text,
+        p.raw_material_code,
+        p.raw_material_text,
+        p.design_num,
+        p.raw_material_unit,
+        p.waste_material_code,
+        p.waste_material_text,
+        p.waste_material_unit,
+        p.num_receipts,
+        p.deliver_num,
+        p.deliver_time,
+        p.deliver_voucher,
+        p.project_no,
+        p.project_name,
+        p.project_type,
+        p.asset_no,
+        p.asset_text,
+        p.real_id,
+        p.equipment_deveui,
+        p.object_instruct,
+        p.manufacturing,
+        p.factory_no,
+        p.waste_val,
+        p.waste_reason,
+        p.delivery_create_by,
+        p.delivery_create_time,
+        p.delivery_receive_time,
+        p.project_contact,
+        p.project_phone,
+        p.the_contact,
+        p.the_phone,
+        p.warehouse_contact,
+        p.demolition_plan,
+        p.engineering_address,
+        p.system_no,
+        p.note_information,
+        p.project_no_remarks,
+        p.rate_formation,
+        p.plans_complete_time,
+        CASE
+        p.plan_type
+        WHEN '配变电' THEN
+        '配变电'
+        WHEN '线路' THEN
+        '线路'
+        WHEN '电缆' THEN
+        '电缆'
+        WHEN '其他' THEN
+        '其它' ELSE '未知'
+        END AS plan_type,
+        d.accomplish_num AS stockNum,
+        d.deliver_time AS deliverTime,
+        r.accomplish_num AS receivingNum,
+        r.receiving_time AS receivingTime,
+        w.`name` AS warehouseName,
+        ( SELECT w.`name` FROM warehouse WHERE id = r.backup1 ) AS terminalBin
+        FROM
+        plan1 p
+        LEFT JOIN deliver_storage d ON p.id = d.plan_id
+        AND d.plan_type = 1
+        LEFT JOIN receiving_storage r ON p.id = r.plan_id
+        AND r.plan_type = 1
+        LEFT JOIN warehouse w ON d.warehouse_id = w.id
+        AND r.warehouse_id = w.id
+        <where>
+            <if test="null != plan1Im.planType">
+                AND p.plan_type = #{plan1Im.planType}
+            </if>
+            <if test="null != plan1Im.assetNo and '' != plan1Im.assetNo">
+                AND p.asset_no LIKE CONCAT('%',#{plan1Im.assetNo},'%')
+            </if>
+            <if test="null != plan1Im.projectNo and '' != plan1Im.projectNo">
+                AND p.project_no LIKE CONCAT('%',#{plan1Im.projectNo},'%')
+            </if>
+            <if test="null != plan1Im.completeState">
+                AND p.complete_state = #{plan1Im.completeState}
+            </if>
+            <if test="null != plan1Im.beginTime">
+                AND p.create_time &gt;= #{plan1Im.beginTime}
+            </if>
+            <if test="null != plan1Im.endTime">
+                AND p.create_time &lt;= #{plan1Im.endTime}
+            </if>
+        </where>
+        GROUP BY
+        p.id
+    </select>
+
+    <!-- 计划结算 -->
+    <select id="selectSettleAccounts" resultType="org.jeecg.modules.cable.vo.SettleAccountsVo">
+        SELECT * FROM (
+        SELECT plan_type,project_no,project_name,complete_state,backup1 FROM `plan1` p1
+        WHERE p1.project_no NOT IN (
+        SELECT project_no FROM plan1 WHERE complete_state = 0 GROUP BY project_no
+        )
+        GROUP BY project_no
+        UNION ALL
+        SELECT plan_type,project_no,equipment_name,complete_state,backup1 FROM `plan2` p2
+        WHERE p2.project_no NOT IN (
+        SELECT project_no FROM plan2 WHERE complete_state = 0 GROUP BY project_no
+        )
+        GROUP BY project_no
+        UNION ALL
+        SELECT plan_type,project_no,eng_name,complete_state,backup1 FROM `plan3` p3
+        WHERE p3.project_no NOT IN (
+        SELECT project_no FROM plan3 WHERE complete_state = 0 GROUP BY project_no
+        )
+        GROUP BY project_no
+        UNION ALL
+        SELECT plan_type,project_no,eng_name,complete_state,backup1 FROM `plan4` p4
+        WHERE p4.project_no NOT IN (
+        SELECT project_no FROM plan4 WHERE complete_state = 0 GROUP BY project_no
+        )
+        GROUP BY project_no
+        ) AS se
+        <where>
+            <if test="backup1!=null and backup1!=''">
+                AND se.backup1 = #{backup1}
+            </if>
+            <if test="planType!=null and planType!=''">
+                AND se.plan_type = #{planType}
+            </if>
+            <if test="projectNo!=null and projectNo!=''">
+                AND se.project_no LIKE CONCAT('%',#{projectNo},'%')
+            </if>
+        </where>
+        GROUP BY se.project_no
+
+    </select>
+
+    <!-- 计划结算详情 -->
+    <select id="selectSettleAccountsDetails" resultType="org.jeecg.modules.cable.vo.SettleAccountsDetailsVo">
+        SELECT * from(
+        SELECT waste_material_text,rs1.accomplish_num as receivingNum,ds1.accomplish_num as deliverNum,'' AS
+        pro_theorder_no,project_no
+        from plan1 p1
+        INNER JOIN (select plan_id,Sum(accomplish_num) as accomplish_num from receiving_storage GROUP BY plan_id) as rs1
+        on p1.id=rs1.plan_id
+        INNER join (select plan_id,Sum(accomplish_num) as accomplish_num from deliver_storage GROUP BY plan_id)as ds1 on
+        p1.id=ds1.plan_id
+        GROUP BY project_no
+        UNION All
+        SELECT backup2,rs1.accomplish_num as ra,Sum(ds1.accomplish_num) as da,'' AS pro_theorder_no,project_no
+        from plan2 p2
+        INNER JOIN (select plan_id,Sum(accomplish_num) as accomplish_num from receiving_storage GROUP BY plan_id) as rs1
+        on p2.id=rs1.plan_id
+        INNER join (select plan_id,Sum(accomplish_num) as accomplish_num from deliver_storage GROUP BY plan_id)as ds1 on
+        p2.id=ds1.plan_id
+        GROUP BY project_no
+        UNION All
+        SELECT material_describe,rs1.accomplish_num as ra,Sum(ds1.accomplish_num) as da,'' AS pro_theorder_no,project_no
+        from plan3 p3
+        INNER JOIN (select plan_id,Sum(accomplish_num) as accomplish_num from receiving_storage GROUP BY plan_id) as rs1
+        on p3.id=rs1.plan_id
+        INNER join (select plan_id,Sum(accomplish_num) as accomplish_num from deliver_storage GROUP BY plan_id)as ds1 on
+        p3.id=ds1.plan_id
+        GROUP BY pro_theorder_no
+        UNION All
+        SELECT cable_name,rs1.accomplish_num as ra,ds1.accomplish_num as da,'' AS pro_theorder_no,project_no
+        from plan4 p4
+        INNER JOIN (select plan_id,Sum(accomplish_num) as accomplish_num from receiving_storage GROUP BY plan_id) as rs1
+        on p4.id=rs1.plan_id
+        INNER join (select plan_id,Sum(accomplish_num) as accomplish_num from deliver_storage GROUP BY plan_id)as ds1 on
+        p4.id=ds1.plan_id
+        GROUP BY project_no
+        ) as p
+        <where>
+            <if test="null != projectNo">
+                AND p.project_no = #{projectNo}
+            </if>
+        </where>
+    </select>
+
+    <!-- 计划表1配变电/线路统计 -->
+    <select id="selectSubstation" resultType="org.jeecg.modules.cable.vo.Plan1Vo">
+        select project_name,waste_material_text,Sum(ds1.accomplish_num) as stock_num,Sum(rs1.accomplish_num) as
+        receiving_num,item_text as raw_material from plan1 p1
+        INNER JOIN deliver_storage ds1 on p1.id=ds1.plan_id
+        INNER JOIN receiving_storage rs1 on p1.id=rs1.plan_id
+        INNER JOIN (SELECT item_text,item_value from sys_dict sd INNER JOIN sys_dict_item sdi on sd.id=sdi.dict_id WHERE
+        dict_code='unit' ) as sd1 on rs1.accomplish_num_unit=sd1.item_value
+        <where>
+            <if test="null != planType">
+                AND p1.plan_type=#{planType}
+            </if>
+            <if test="null != wasteMaterialText and '' != wasteMaterialText">
+                AND waste_material_text like CONCAT('%',#{wasteMaterialText},'%')
+            </if>
+            <if test="null != beginTime and '' != beginTime">
+                AND ds1.deliver_time <![CDATA[>=]]> #{beginTime}
+                AND rs1.receiving_time <![CDATA[>=]]> #{beginTime}
+            </if>
+            <if test="null != endTime and '' != endTime">
+                AND ds1.deliver_time <![CDATA[<=]]> #{endTime}
+                AND rs1.receiving_time <![CDATA[<=]]> #{endTime}
+            </if>
+        </where>
+        GROUP BY waste_material_text
+    </select>
+
+    <!-- 导出汇总 -->
+    <select id="exportPlan2" resultType="org.jeecg.modules.cable.vo.Plan1ExcelVo">
+        select project_name,waste_material_text,Sum(ds1.accomplish_num) as stock_num,Sum(rs1.accomplish_num) as
+        receiving_num,item_text as raw_material from plan1 p1
+        INNER JOIN deliver_storage ds1 on p1.id=ds1.plan_id
+        INNER JOIN receiving_storage rs1 on p1.id=rs1.plan_id
+        INNER JOIN (SELECT item_text,item_value from sys_dict sd INNER JOIN sys_dict_item sdi on sd.id=sdi.dict_id WHERE
+        dict_code='unit' ) as sd1 on rs1.accomplish_num_unit=sd1.item_value
+        <where>
+            <if test="null != plan1ExcelVo.planType">
+                AND p1.plan_type=#{plan1ExcelVo.planType}
+            </if>
+            <if test="null != plan1ExcelVo.beginTime and '' != plan1ExcelVo.beginTime">
+                AND ds1.deliver_time <![CDATA[>=]]> #{plan1ExcelVo.beginTime}
+                AND rs1.receiving_time <![CDATA[>=]]> #{plan1ExcelVo.beginTime}
+            </if>
+            <if test="null != plan1ExcelVo.endTime and '' != plan1ExcelVo.endTime">
+                AND ds1.deliver_time <![CDATA[<=]]> #{plan1ExcelVo.endTime}
+                AND rs1.receiving_time <![CDATA[<=]]> #{plan1ExcelVo.endTime}
+            </if>
+        </where>
+        GROUP BY waste_material_text
+    </select>
+
+    <!-- 首页线路统计 bai 2020/9/17 -->
+    <select id="getXLTJList" resultType="org.jeecg.modules.cable.vo.IndexXLTJVo">
+        SELECT
+        *
+        FROM
+        (
+        SELECT
+        m.backup1,
+        SUM( d.deliverNum ) AS deliverNum,
+        d.deliver_time AS deliverTime,
+        SUM( p.num_receipts ) AS numReceipts
+        FROM
+        plan1 p
+        LEFT JOIN ( SELECT plan_id, plan_type, SUM( accomplish_num ) AS deliverNum, deliver_time FROM deliver_storage GROUP BY plan_id ) d ON p.id = d.plan_id
+        AND d.plan_type = 1
+        LEFT JOIN material m ON p.waste_material_code = m.serial
+        WHERE
+        p.plan_type = '线路'
+        AND m.backup1 IN ( '导线', '开关', '变压器' )
+        GROUP BY
+        m.backup1 UNION ALL
+        SELECT
+        '其他' as backup1,
+        SUM( d.deliverNum ) AS deliverNum,
+        d.deliver_time AS deliverTime,
+        SUM( p.num_receipts ) AS numReceipts
+        FROM
+        plan1 p
+        LEFT JOIN ( SELECT plan_id, plan_type, SUM( accomplish_num ) AS deliverNum, deliver_time FROM deliver_storage GROUP BY plan_id ) d ON p.id = d.plan_id
+        AND d.plan_type = 1
+        LEFT JOIN material m ON p.waste_material_code = m.serial
+        WHERE
+        p.plan_type = '线路'
+        AND m.backup1 NOT IN ( '导线', '开关', '变压器' )
+        GROUP BY
+        m.backup1
+        ) `result`
+        <where>
+            <if test="vo.beginTime != null">
+                AND `result`.deliverTime &gt;= #{vo.beginTime}
+            </if>
+            <if test="vo.endTime != null">
+                AND `result`.deliverTime &lt;= #{vo.endTime}
+            </if>
+        </where>
+        GROUP BY `result`.backup1
+    </select>
+</mapper>

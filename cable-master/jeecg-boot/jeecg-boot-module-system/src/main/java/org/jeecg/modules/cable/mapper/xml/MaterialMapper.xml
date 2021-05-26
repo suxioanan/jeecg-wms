@@ -1,0 +1,988 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.MaterialMapper">
+    <select id="getMaterialOutPutAccountList" resultType="org.jeecg.modules.cable.vo.MaterialOutPutAccountVo">
+        select
+        m.id,
+        m.serial AS materialSerial,
+        m.`name` AS materialName,
+        m.ations AS materialAtions,
+        m.supplier AS materialSupplier,
+        m.unit AS materialUnit,
+        b.material_id,
+        sum(b.deliverNum) as deliverNum,
+        sum(b.receivingNum) as receivingNum,
+        b.create_time
+        from(
+        select
+        a.material_id,
+        case when a.type='r' then a.deliverNum else 0 end as deliverNum,
+        case when a.type='c' then a.deliverNum else 0 end as receivingNum,
+        a.create_time
+        from
+        (
+        select
+        d.material_id,
+        sum(d.accomplish_num) as deliverNum,
+        d.create_time,
+        'r' as type
+        from
+        deliver_storage d
+        group by d.material_id
+        union all
+        select
+        r.material_id,
+        sum(r.accomplish_num) as deliverNum,
+        r.create_time,
+        'c' as type
+        from
+        receiving_storage r
+        group by r.material_id
+        ) a
+        ) b
+        left join
+        material m
+        ON m.id = b.material_id
+        <where>
+            <if test="null != materialOutPutAccountVo.startTime and '' != materialOutPutAccountVo.startTime">
+                AND b.create_time <![CDATA[>=]]> #{materialOutPutAccountVo.startTime}
+            </if>
+            <if test="null != materialOutPutAccountVo.endTime and '' != materialOutPutAccountVo.endTime">
+                AND b.create_time <![CDATA[<=]]> #{materialOutPutAccountVo.endTime}
+            </if>
+            <if test="null != materialOutPutAccountVo.materialSerial and '' != materialOutPutAccountVo.materialSerial">
+                AND m.serial LIKE CONCAT('%',#{materialOutPutAccountVo.materialSerial},'%')
+            </if>
+            <if test="null != materialOutPutAccountVo.materialName and '' != materialOutPutAccountVo.materialName">
+                AND m.name LIKE CONCAT('%',#{materialOutPutAccountVo.materialName},'%')
+            </if>
+        </where>
+        group by b.material_id
+        order by b.create_time desc
+    </select>
+
+    <select id="getMaterialRemainingAccountList" resultType="org.jeecg.modules.cable.vo.MaterialRemainingAccountVo">
+        SELECT
+        CONCAT( p.id, '_', p.type ),
+        p.planType,
+        p.project_no,
+        p.project_name,
+        m.serial,
+        m.`name`,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 1 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 5, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_5_1,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 0 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 5, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_5_0,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 1 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 4, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_4_1,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 0 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 4, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_4_0,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 1 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 3, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_3_1,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 0 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 3, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_3_0,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 1 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 2, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_2_1,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 0 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 2, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_2_0,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 1 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 1, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_1_1,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 0 AND YEAR ( s.task_time ) = YEAR ( now( ) ) - 1, accomplish_num, 0 ),
+        0
+        )
+        ) AS now_1_0,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 1 AND YEAR ( s.task_time ) = YEAR ( now( ) ), accomplish_num, 0 ),
+        0
+        )
+        ) AS now_0_1,
+        sum( p.num_receipts ) - sum(
+        IFNULL(
+        IF
+        ( storages.type = 0 AND YEAR ( s.task_time ) = YEAR ( now( ) ), accomplish_num, 0 ),
+        0
+        )
+        ) AS now_0_0
+        FROM
+        (
+        SELECT
+        id,
+        project_no,
+        project_name,
+        1 AS type,
+        CASE
+        plan_type
+        WHEN '配变电' THEN
+        '配变电'
+        WHEN '线路' THEN
+        '线路'
+        WHEN '电缆' THEN
+        '电缆'
+        WHEN '其它' THEN
+        '其它' ELSE '未知'
+        END AS planType,
+        num_receipts
+        FROM
+        plan1 UNION ALL
+        SELECT
+        id,
+        project_no,
+        NULL AS project_name,
+        2 AS type,
+        '备品' AS planType,
+        0 AS num_receipts
+        FROM
+        plan2 UNION ALL
+        SELECT
+        id,
+        project_no,
+        eng_name AS project_name,
+        3 AS type,
+        CASE
+        plan_type
+        WHEN '正常' THEN
+        '正常'
+        WHEN '抢修' THEN
+        '抢修'
+        WHEN '临措' THEN
+        '临措' ELSE '未知'
+        END AS planType,
+        num AS num_receipts
+        FROM
+        plan3 UNION ALL
+        SELECT
+        id,
+        project_no,
+        eng_name project_name,
+        4 AS type,
+        '电缆' AS planType,
+        0 AS num_receipts
+        FROM
+        plan4
+        ) p
+        LEFT JOIN send_orders s ON s.plan_type = p.type
+        AND s.plan_id = p.id
+        LEFT JOIN (
+        SELECT
+        deliver_storage.id,
+        deliver_storage.send_orders_id,
+        deliver_storage.material_id,
+        deliver_storage.warehouse_id,
+        deliver_storage.storage_location_id,
+        deliver_storage.accomplish_num,
+        deliver_storage.accomplish_num_unit,
+        deliver_storage.accomplish_weight,
+        deliver_storage.accomplish_weight_unit,
+        deliver_storage.recycling_specifications,
+        deliver_storage.texture,
+        deliver_storage.recycling_situation,
+        deliver_storage.whether_complete,
+        deliver_storage.receipt_no,
+        deliver_storage.incomplete_description,
+        deliver_storage.state,
+        1 AS type
+        FROM
+        deliver_storage
+        WHERE
+        state = 1 UNION ALL
+        SELECT
+        receiving_storage.id,
+        receiving_storage.send_orders_id,
+        receiving_storage.material_id,
+        receiving_storage.warehouse_id,
+        receiving_storage.storage_location_id,
+        receiving_storage.accomplish_num,
+        receiving_storage.accomplish_num_unit,
+        receiving_storage.accomplish_weight,
+        receiving_storage.accomplish_weight_unit,
+        receiving_storage.recycling_specifications,
+        receiving_storage.texture,
+        receiving_storage.recycling_situation,
+        receiving_storage.whether_complete,
+        receiving_storage.receipt_no,
+        receiving_storage.incomplete_description,
+        receiving_storage.state,
+        0 AS type
+        FROM
+        receiving_storage
+        WHERE
+        state = 1
+        ) storages ON storages.send_orders_id = s.id
+        AND s.operator_schema = storages.type
+        LEFT JOIN material m ON storages.material_id = m.id
+        <where>
+            <if test="serial != null and serial != ''">
+                AND m.serial LIKE CONCAT('%',#{serial},'%')
+            </if>
+            <if test="name != null and name != ''">
+                AND m.`name` LIKE CONCAT('%',#{name},'%')
+            </if>
+            <if test="projectNo != null and projectNo != ''">
+                AND p.project_no LIKE CONCAT('%',#{projectNo},'%')
+            </if>
+        </where>
+        GROUP BY CONCAT( p.id,'_', p.type )
+        ORDER BY p.project_no,m.serial
+    </select>
+
+    <!-- 物料年度出入台账 2020/9/4 bai -->
+    <select id="getAnnualAccountList" resultType="org.jeecg.modules.cable.vo.AnnualReportVo">
+        SELECT
+        p.planType,
+        m.serial,
+        m.`name`,
+        p.asset_no,
+        p.type,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 1,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m1_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 1,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m1_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 2,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m2_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 2,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m2_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 3,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m3_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 3,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m3_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 4,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m4_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 4,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m4_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 5,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m5_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 5,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m5_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 6,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m6_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 6,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m6_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 7,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m7_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 7,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m7_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 8,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m8_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 8,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m8_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 9,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m9_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 9,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m9_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 10,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m10_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 10,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m10_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 11,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m11_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 11,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m11_1,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 0
+        AND MONTH ( storages.taskTime ) = 12,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m12_0,
+        sum(
+        IFNULL(
+        IF
+        (
+        storages.type = 1
+        AND MONTH ( storages.taskTime ) = 12,
+        IF
+        ( p.type = 4, accomplish_weight, storages.accomplish_num ),
+        0
+        ),
+        0
+        )
+        ) AS m12_1
+        FROM
+        (
+        SELECT
+        id,
+        project_no,
+        project_name,
+        CASE
+        plan_type
+        WHEN '配变电' THEN
+        '配变电'
+        WHEN '线路' THEN
+        '线路'
+        WHEN '电缆' THEN
+        '电缆'
+        WHEN '其它' THEN
+        '其它' ELSE '未知'
+        END AS planType,
+        1 AS type,
+        raw_material_code AS materialSerial,
+        raw_material_text AS materialName,
+        asset_no
+        FROM
+        plan1 UNION ALL
+        SELECT
+        id,
+        project_no,
+        site AS project_name,
+        '备品' AS planType,
+        2 AS type,
+        backup3 AS materialSerial,
+        backup2 AS materialName,
+        retired_asset_no AS asset_no
+        FROM
+        plan2 UNION ALL
+        SELECT
+        id,
+        project_no,
+        eng_name AS project_name,
+        CASE
+        plan_type
+        WHEN '新品' THEN
+        '新品'
+        WHEN '抢修' THEN
+        '抢修'
+        WHEN '临措' THEN
+        '临措' ELSE '未知'
+        END AS planType,
+        3 AS type,
+        material_code AS materialSerial,
+        material_describe AS materialName,
+        pro_theorder_no AS asset_no
+        FROM
+        plan3 UNION ALL
+        SELECT
+        id,
+        project_no,
+        eng_name AS project_name,
+        '电缆' AS planType,
+        4 AS type,
+        CONCAT( voltage_grade, ' ', cable_cross ) AS materialSerial,
+        CONCAT( voltage_grade, ' ', cable_cross ) AS materialName,
+        '' AS asset_no
+        FROM
+        plan4
+        ) p
+        INNER JOIN (
+        SELECT
+        d.id,
+        d.plan_id,
+        d.plan_type,
+        d.material_id,
+        d.warehouse_id,
+        d.storage_location_id,
+        d.accomplish_num,
+        d.accomplish_num_unit,
+        d.accomplish_weight,
+        d.accomplish_weight_unit,
+        d.accomplish_volume,
+        d.receipt_no,
+        d.state,
+        d.deliver_time AS taskTime,
+        d.create_time,
+        1 AS type
+        FROM
+        deliver_storage d
+        WHERE
+        state = 1 UNION ALL
+        SELECT
+        r.id,
+        r.plan_id,
+        r.plan_type,
+        r.material_id,
+        r.warehouse_id,
+        r.storage_location_id,
+        r.accomplish_num,
+        r.accomplish_num_unit,
+        r.accomplish_weight,
+        r.accomplish_weight_unit,
+        r.accomplish_volume,
+        r.receipt_no,
+        r.state,
+        r.receiving_time AS taskTime,
+        r.create_time,
+        0 AS type
+        FROM
+        receiving_storage r
+        WHERE
+        state = 1
+        ) storages ON storages.plan_id = p.id
+        AND storages.plan_type = p.type
+        LEFT JOIN material m ON storages.material_id = m.id
+        <where>
+            <if test="null != planType and '' != planType">
+                AND p.planType LIKE CONCAT('%',#{planType},'%')
+            </if>
+            <if test="serial!=null and serial!=''">
+                AND m.serial LIKE CONCAT('%',#{serial},'%')
+            </if>
+            <if test="name!=null and name!=''">
+                AND m.name LIKE CONCAT('%',#{name},'%')
+            </if>
+            <if test="projectNo!=null and projectNo!=''">
+                AND p.project_no LIKE CONCAT('%',#{projectNo},'%')
+            </if>
+            <if test="dateTime!=null and dateTime!=''">
+                AND year(storages.taskTime) = #{dateTime}
+            </if>
+            <if test="assetNo!=null and assetNo!=''">
+                AND p.asset_no LIKE CONCAT('%',#{assetNo},'%')
+            </if>
+        </where>
+        GROUP BY
+        storages.plan_id,
+        storages.plan_type,
+        storages.material_id,
+        p.asset_no
+    </select>
+
+    <sql id="Base_Column_list">
+        id, serial, name, ations, supplier, unit, material_volume, create_time, update_time, create_by,
+        update_by, backup1, backup2, backup3, backup4, backup5
+    </sql>
+
+    <select id="getMaterialPageList" resultType="org.jeecg.modules.cable.entity.Material">
+        SELECT
+        <include refid="Base_Column_list"></include>
+        FROM material
+        <where>
+            <if test="serial != null and serial != ''">
+                AND material.serial LIKE CONCAT('%',#{serial},'%')
+            </if>
+            <if test="name != null and name != ''">
+                AND material.`name` LIKE CONCAT('%',#{name},'%')
+            </if>
+            <if test="supplier != null and supplier != ''">
+                AND material.supplier LIKE CONCAT('%',#{supplier},'%')
+            </if>
+        </where>
+        ORDER BY update_time DESC
+    </select>
+
+    <insert id="saveMaterial" parameterType="org.jeecg.modules.cable.entity.Material" useGeneratedKeys="true"
+            keyProperty="id">
+        INSERT INTO material(serial,name,ations,supplier,unit,material_volume,create_time,update_time)
+        VALUES(#{serial},#{name},#{ations},#{supplier},#{unit},#{materialVolume},#{createTime},#{updateTime})
+    </insert>
+
+    <update id="editMaterial" parameterType="org.jeecg.modules.cable.entity.Material">
+        UPDATE material
+        <set>
+            <if test="ations != null">
+                ations = #{ations},
+            </if>
+            <if test="supplier != null">
+                supplier = #{supplier},
+            </if>
+            <if test="unit != null">
+                unit = #{unit},
+            </if>
+            <if test="materialVolume != null">
+                material_volume = #{materialVolume},
+            </if>
+            <if test="updateTime != null">
+                update_time = #{updateTime},
+            </if>
+            <if test="updateBy != null">
+                update_by = #{updateBy},
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 出入库台账 bai_2020/9/1 -->
+    <select id="getOutPutWarehouseList" resultType="org.jeecg.modules.cable.vo.OutPutWarehouseVo">
+        SELECT
+        storages.id,
+        storages.operator_schema,
+        storages.taskTime,
+        p.planType,
+        p.project_no,
+        p.project_name,
+        m.serial,
+        m.`name`,
+        p.asset_no,
+        p.pro_theorder_no,
+        storages.accomplish_num,
+        storages.accomplish_num_unit,
+        storages.accomplish_weight,
+        w.`name` AS warehouseName,
+        s.storage_location_name,
+        storages.receipt_no,
+        storages.annotation,
+        (SELECT `name` FROM warehouse WHERE id = storages.backup1) as endWareHouseName
+        FROM
+        (
+        SELECT
+        id,
+        plan_id,
+        plan_type,
+        material_id,
+        warehouse_id,
+        storage_location_id,
+        accomplish_num,
+        accomplish_num_unit,
+        accomplish_weight,
+        deliver_time AS taskTime,
+        receipt_no,
+        annotation,
+        1 AS operator_schema,
+        NULL AS backup1
+        FROM
+        deliver_storage UNION ALL
+        SELECT
+        id,
+        plan_id,
+        plan_type,
+        material_id,
+        warehouse_id,
+        storage_location_id,
+        accomplish_num,
+        accomplish_num_unit,
+        accomplish_weight,
+        receiving_time AS taskTime,
+        receipt_no,
+        annotation,
+        0 AS operator_schema,
+        backup1
+        FROM
+        receiving_storage
+        ) storages
+        LEFT JOIN (
+        SELECT
+        id,
+        CASE
+        plan_type
+        WHEN '配变电' THEN
+        '配变电'
+        WHEN '线路' THEN
+        '线路'
+        WHEN '电缆' THEN
+        '电缆'
+        WHEN '其它' THEN
+        '其它' ELSE '未知'
+        END AS planType,
+        project_no,
+        project_name,
+        asset_no,
+        NULL AS pro_theorder_no,
+        1 AS type
+        FROM
+        plan1 UNION ALL
+        SELECT
+        id,
+        '备品' AS planType,
+        project_no,
+        site AS project_name,
+        retired_asset_no AS asset_no,
+        NULL AS pro_theorder_no,
+        2 AS type
+        FROM
+        plan2 UNION ALL
+        SELECT
+        id,
+        CASE
+        plan_type
+        WHEN '新品' THEN
+        '新品'
+        WHEN '抢修' THEN
+        '抢修'
+        WHEN '临措' THEN
+        '临措' ELSE '未知'
+        END AS planType,
+        project_no,
+        eng_name AS project_name,
+        NULL AS asset_no,
+        pro_theorder_no,
+        3 AS type
+        FROM
+        plan3 UNION ALL
+        SELECT
+        id,
+        '电缆' AS planType,
+        project_no,
+        eng_name AS project_name,
+        NULL AS asset_no,
+        NULL AS pro_theorder_no,
+        4 AS type
+        FROM
+        plan4
+        ) p ON storages.plan_id = p.id
+        AND storages.plan_type = p.type
+        LEFT JOIN material m ON storages.material_id = m.id
+        LEFT JOIN warehouse w ON storages.warehouse_id = w.id
+        LEFT JOIN storage_location s ON storages.storage_location_id = s.id
+        <where>
+            <if test="vo.operatorSchema != null">
+                AND storages.operator_schema = #{vo.operatorSchema}
+            </if>
+            <if test="vo.startTime != null">
+                AND storages.taskTime &gt;= #{vo.startTime}
+            </if>
+            <if test="vo.endTime != null">
+                AND storages.taskTime &lt;= #{vo.endTime}
+            </if>
+            <if test="vo.planType != null and vo.planType != ''">
+                AND p.planType LIKE CONCAT('%',#{vo.planType},'%')
+            </if>
+            <if test="vo.projectNo != null and vo.projectNo != ''">
+                AND p.project_no = #{vo.projectNo}
+            </if>
+            <if test="vo.projectName != null and vo.projectName != ''">
+                AND p.project_name LIKE CONCAT('%',#{vo.projectName},'%')
+            </if>
+            <if test="vo.name != null and vo.name != ''">
+                AND m.`name` LIKE CONCAT('%',#{vo.name},'%')
+            </if>
+            <if test="vo.proTheorderNo != null and vo.proTheorderNo != ''">
+                AND p.pro_theorder_no LIKE CONCAT('%',#{vo.proTheorderNo},'%')
+            </if>
+            <if test="vo.receiptNo != null and vo.receiptNo != ''">
+                AND storages.receipt_no LIKE CONCAT('%',#{vo.receiptNo},'%')
+            </if>
+        </where>
+        GROUP BY storages.id,storages.operator_schema
+        ORDER BY storages.taskTime DESC
+    </select>
+
+    <select id="materialOutPutDayRList" resultType="org.jeecg.modules.cable.vo.StatisticalChartVo">
+      SELECT
+      IFNULL( sum( IFNULL(accomplish_num,0) ) ,0) AS y
+  FROM
+      deliver_storage AS ds
+  LEFT JOIN send_orders AS so ON ds.send_orders_id = so.id
+  WHERE
+      ds.material_id = #{id}
+      AND DATE_FORMAT( task_time, '%Y-%m-%d' ) = DATE_FORMAT( #{date}, '%Y-%m-%d' )
+  </select>
+
+    <select id="materialOutPutDayCList" resultType="org.jeecg.modules.cable.vo.StatisticalChartVo">
+    SELECT
+        IFNULL( sum( IFNULL(accomplish_num,0) ) ,0) AS y
+    FROM
+        receiving_storage AS rs
+    LEFT JOIN send_orders AS so ON rs.send_orders_id = so.id
+    WHERE
+        rs.material_id = #{id}
+        AND DATE_FORMAT( task_time, '%Y-%m-%d' ) = DATE_FORMAT( #{date}, '%Y-%m-%d' )
+  </select>
+
+    <select id="materialOutPutMonthRList" resultType="org.jeecg.modules.cable.vo.StatisticalChartVo">
+  SELECT
+      IFNULL( sum( IFNULL(accomplish_num,0) ) ,0) AS y
+  FROM
+      deliver_storage AS ds
+  LEFT JOIN send_orders AS so ON ds.send_orders_id = so.id
+  WHERE
+      ds.material_id = #{id}
+      AND DATE_FORMAT( task_time, '%Y-%m' ) = DATE_FORMAT( #{date}, '%Y-%m' )
+  </select>
+
+    <select id="materialOutPutMonthCList" resultType="org.jeecg.modules.cable.vo.StatisticalChartVo">
+  SELECT
+      IFNULL( sum( IFNULL(accomplish_num,0) ) ,0) AS y
+  FROM
+      receiving_storage AS rs
+  LEFT JOIN send_orders AS so ON rs.send_orders_id = so.id
+  WHERE
+      rs.material_id = #{id}
+      AND DATE_FORMAT( task_time, '%Y-%m' ) = DATE_FORMAT( #{date}, '%Y-%m' )
+</select>
+</mapper>

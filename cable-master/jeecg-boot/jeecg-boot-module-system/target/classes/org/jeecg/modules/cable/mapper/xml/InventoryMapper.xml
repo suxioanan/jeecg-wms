@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.InventoryMapper">
+    <select id="InsurancePageList" resultType="org.jeecg.modules.cable.vo.InventoryListsVo">
+        SELECT
+        GROUP_CONCAT( inventory.id ) AS id,
+        inventory.project_no,
+        p.project_name,
+        material.serial,
+        material.`name` AS material_name,
+        sum( inventory.inventory_quantity ) AS quantityInStock,
+        inventory.backup3 AS unit,
+        p.asset_no,
+        p.proTheorderNo
+        FROM
+        inventory
+        LEFT JOIN (
+        SELECT
+        id,
+        '' AS proTheorderNo,
+        project_no,
+        project_name,
+        1 AS type,
+        asset_no,
+        CASE
+        plan_type
+        WHEN '配变电' THEN
+        '配变电'
+        WHEN '线路' THEN
+        '线路'
+        WHEN '电缆' THEN
+        '电缆'
+        WHEN '其它' THEN
+        '其它' ELSE '未知'
+        END AS planType
+        FROM
+        plan1 UNION ALL
+        SELECT
+        id,
+        '' AS proTheorderNo,
+        project_no,
+        NULL AS project_name,
+        2 AS type,
+        asset_no,
+        '备品' AS planType
+        FROM
+        plan2 UNION ALL
+        SELECT
+        id,
+        pro_theorder_no AS proTheorderNo,
+        project_no,
+        eng_name AS project_name,
+        3 AS type,
+        NULL AS asset_no,
+        CASE
+        plan_type
+        WHEN '正常' THEN
+        '正常'
+        WHEN '抢修' THEN
+        '抢修'
+        WHEN '临措' THEN
+        '临措' ELSE '未知'
+        END AS planType
+        FROM
+        plan3 UNION ALL
+        SELECT
+        id,
+        '' AS proTheorderNo,
+        project_no,
+        eng_name project_name,
+        4 AS type,
+        NULL AS asset_no,
+        '电缆' AS planType
+        FROM
+        plan4
+        ) p ON p.id = inventory.backup1
+        AND p.type = inventory.backup2
+        LEFT JOIN material ON material.id = inventory.material_id
+        <where>
+            <if test="null != inventoryVo.storageLocationId and '' != inventoryVo.storageLocationId">
+                AND storage_location_id = #{inventoryVo.storageLocationId}
+            </if>
+            <if test="null != inventoryVo.projectName and '' != inventoryVo.projectName">
+                AND p.project_name LIKE CONCAT('%', #{inventoryVo.projectName},'%')
+            </if>
+            <if test="null != inventoryVo.assetNo and '' != inventoryVo.assetNo">
+                AND p.asset_no = #{inventoryVo.assetNo}
+            </if>
+            <if test="null != inventoryVo.proTheorderNo and '' != inventoryVo.proTheorderNo">
+                AND p.proTheorderNo = #{inventoryVo.proTheorderNo}
+            </if>
+        </where>
+        GROUP BY
+        inventory.backup1,
+        inventory.backup2,
+        inventory.backup3,
+        material_id,
+        asset_no
+    </select>
+
+    <select id="yikuVoPage" resultType="org.jeecg.modules.cable.vo.YikuVo">
+        SELECT
+        zhuanyi.id,
+        CONCAT( warehouse1.NAME, '-', storage_location1.storage_location_name ) AS name1,
+        CONCAT( warehouse2.NAME, '-', storage_location2.storage_location_name ) AS name2,
+        wcode,
+        wuliao_name,
+        zhuanyi_shuliang AS yksum,
+        raw_material_unit AS unit,
+        zhuanyi.create_time
+        FROM
+        zhuanyi
+        LEFT JOIN storage_location AS storage_location1 ON zhuanyi.storage_location_id1 = storage_location1.id
+        LEFT JOIN storage_location AS storage_location2 ON zhuanyi.storage_location_id2 = storage_location2.id
+        LEFT JOIN warehouse AS warehouse1 ON warehouse1.id = storage_location1.warehouse_id
+        LEFT JOIN warehouse AS warehouse2 ON warehouse2.id = storage_location2.warehouse_id
+        <where>
+            <if test="yikuVo.name1!=null and yikuVo.name1!=''">
+                warehouse1.id = #{yikuVo.name1}
+            </if>
+            <if test="yikuVo.name2!=null and yikuVo.name2!=''">
+                AND zhuanyi.storage_location_id1 = #{yikuVo.name2}
+            </if>
+            <if test="yikuVo.wuliaoName!=null and yikuVo.wuliaoName!=''">
+                and wuliao_name like CONCAT('%',#{yikuVo.wuliaoName},'%')
+            </if>
+        </where>
+        ORDER BY
+        zhuanyi.create_time DESC
+    </select>
+
+    <delete id="yikuDel">
+        delete from zhuanyi where id = #{id}
+    </delete>
+
+    <insert id="yikuAdd">
+        insert into zhuanyi(storage_location_id1,storage_location_id2,zhuanyi_shuliang,wuliao_name,wcode,raw_material_unit,create_time)
+        values(#{val.name1},#{val.name2},#{val.yksum},#{val.wuliaoName},#{val.wcode},#{val.unit},#{val.createTime})
+    </insert>
+</mapper>

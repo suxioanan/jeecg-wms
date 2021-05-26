@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.StorageLocationMapper">
+    <select id="getAll" resultType="org.jeecg.modules.cable.vo.StorageLocationVo">
+        SELECT
+        s.id,
+        s.warehouse_id,
+        s.storage_location_name,
+        s.storage_location_volume,
+        s.the_current_volume,
+        IFNULL(ROUND(s.the_current_volume / s.storage_location_volume * 100, 2),0) as percentage
+        FROM
+        storage_location s
+        ${ew.customSqlSegment}
+    </select>
+</mapper>

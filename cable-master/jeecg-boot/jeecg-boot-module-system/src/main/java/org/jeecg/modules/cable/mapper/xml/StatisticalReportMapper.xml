@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.StatisticalReportMapper">
+    <!-- 人员任务统计 -->
+    <select id="getPersonnelTaskStatistics" resultType="org.jeecg.modules.cable.vo.PersonnelTaskStatisticsVo">
+        SELECT * FROM (SELECT realName from sys_user
+        <where>
+            <if test="null != realName and '' != realName">
+                AND realname = #{realName}
+            </if>
+        </where>
+        ) a1 LEFT JOIN
+        (SELECT u.realname as name,
+        COUNT(IF(MONTH(s.task_time) = 1,true,null)) as m1,
+        COUNT(if(MONTH(s.task_time) = 2,true,null)) as m2,
+        COUNT(if(MONTH(s.task_time) = 3,true,null)) as m3,
+        COUNT(if(MONTH(s.task_time) = 4,true,null)) as m4,
+        COUNT(if(MONTH(s.task_time) = 5,true,null)) as m5,
+        COUNT(if(MONTH(s.task_time) = 6,true,null)) as m6,
+        COUNT(if(MONTH(s.task_time) = 7,true,null)) as m7,
+        COUNT(if(MONTH(s.task_time) = 8,true,null)) as m8,
+        COUNT(if(MONTH(s.task_time) = 9,true,null)) as m9,
+        COUNT(if(MONTH(s.task_time) = 10,true,null)) as m10,
+        COUNT(if(MONTH(s.task_time) = 11,true,null)) as m11,
+        COUNT(if(MONTH(s.task_time) = 12,true,null)) as m12,
+        COUNT(s.type_id) as nums
+        FROM
+        send_orders_subtabulation s
+        LEFT JOIN sys_user u ON s.type_id = u.id
+        <where>
+            s.distribution_type = 1
+            <if test="null != taskTime">
+                AND YEAR(task_time)=#{taskTime}
+            </if>
+            <if test="null != realName and '' != realName">
+                AND type_id = (SELECT id FROM sys_user WHERE realname = #{realName})
+            </if>
+        </where>
+        GROUP BY u.id) a2 on a1.realName = a2.name ORDER BY a2.nums DESC
+    </select>
+
+    <!-- 出车统计 -->
+    <select id="getDepartureStatistics" resultType="org.jeecg.modules.cable.vo.DepartureStatisticsVo">
+        SELECT * FROM (SELECT license from vehicle) a1 LEFT JOIN
+        (SELECT v.license as li,
+        COUNT(IF(MONTH(s.task_time) = 1,true,null)) as m1,
+        COUNT(if(MONTH(s.task_time) = 2,true,null)) as m2,
+        COUNT(if(MONTH(s.task_time) = 3,true,null)) as m3,
+        COUNT(if(MONTH(s.task_time) = 4,true,null)) as m4,
+        COUNT(if(MONTH(s.task_time) = 5,true,null)) as m5,
+        COUNT(if(MONTH(s.task_time) = 6,true,null)) as m6,
+        COUNT(if(MONTH(s.task_time) = 7,true,null)) as m7,
+        COUNT(if(MONTH(s.task_time) = 8,true,null)) as m8,
+        COUNT(if(MONTH(s.task_time) = 9,true,null)) as m9,
+        COUNT(if(MONTH(s.task_time) = 10,true,null)) as m10,
+        COUNT(if(MONTH(s.task_time) = 11,true,null)) as m11,
+        COUNT(if(MONTH(s.task_time) = 12,true,null)) as m12,
+        COUNT(s.type_id) as nums
+        FROM
+        send_orders_subtabulation s
+        LEFT JOIN vehicle v ON s.type_id = v.license
+        <where>
+            s.distribution_type = 0
+            <if test="null != taskTime">
+                AND YEAR(task_time)=#{taskTime}
+            </if>
+        </where>
+        GROUP BY v.license) a2 on a1.license = a2.li ORDER BY a2.nums DESC
+    </select>
+
+    <!-- 出车统计详情 -->
+    <select id="getDepartureStatisticsDetails" resultType="org.jeecg.modules.cable.vo.DepartureStatisticsDetailsVo">
+        SELECT
+        s.task_time as taskTime,
+        s.type_id as license,
+        o.operator_schema as rwType,
+        p.project_no as projectNo,
+        p.project_name as projectName,
+        p.engineering_address as projectAddress
+        FROM
+        send_orders_subtabulation s
+        LEFT JOIN send_orders o ON s.send_orders_id = o.id
+        LEFT JOIN plan1 p ON o.plan_id = p.id
+        <where>
+            <if test="null != license and '' != license">
+                AND s.type_id = #{license}
+            </if>
+            <if test="null != taskTime and '' != taskTime">
+                AND YEAR(s.task_time)=#{taskTime}
+            </if>
+            <if test="null != month and '' != month">
+                AND MONTH(s.task_time)=#{month}
+            </if>
+        </where>
+        ORDER BY s.task_time DESC
+    </select>
+</mapper>

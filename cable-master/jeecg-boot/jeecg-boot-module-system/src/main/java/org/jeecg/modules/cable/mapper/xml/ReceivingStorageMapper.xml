@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.ReceivingStorageMapper">
+    <update id="updateDS">
+        UPDATE
+		    receiving_storage
+        SET
+            accomplish_num = #{PlanVo.accomplishNum},
+            accomplish_num_unit=#{PlanVo.accomplishNumUnit},
+            state=1,
+            scene_situation=#{PlanVo.sceneSituation},
+            anomalous_cause=#{PlanVo.anomalousCause},
+            scene_abnormal_photos=#{PlanVo.scenePhotos},
+            receipt_photos=#{PlanVo.receiptPhotos},
+            receiving_time=#{PlanVo.handoverDate},
+            annotation=#{PlanVo.annotation}
+            <if test="PlanVo.accomplishVolume!=null">
+                ,accomplish_volume = #{PlanVo.accomplishVolume}
+            </if>
+            <if test="PlanVo.warehouseId!=null">
+                ,warehouse_id = #{PlanVo.warehouseId}
+            </if>
+            <if test="PlanVo.storageLocationId!=null">
+                ,storage_location_id = #{PlanVo.storageLocationId}
+            </if>
+            <if test="PlanVo.accomplishWeight!=null">
+                ,accomplish_weight = #{PlanVo.accomplishWeight}
+            </if>
+            <if test="PlanVo.accomplishWeightUnit!=null">
+                ,accomplish_weight_unit = #{PlanVo.accomplishWeightUnit}
+            </if>
+            <if test="PlanVo.recyclingSpecifications!=null">
+                ,recycling_specifications = #{PlanVo.recyclingSpecifications}
+            </if>
+            <if test="PlanVo.texture!=null">
+                ,texture = #{PlanVo.texture}
+            </if>
+            <if test="PlanVo.recyclingSituation!=null">
+                ,recycling_situation = #{PlanVo.recyclingSituation}
+            </if>
+            <if test="PlanVo.whetherComplete!=null">
+                ,whether_complete = #{PlanVo.whetherComplete}
+            </if>
+            <if test="PlanVo.receiptNo!=null">
+                ,receipt_no = #{PlanVo.receiptNo}
+            </if>
+            <if test="PlanVo.incompleteDescription!=null">
+                ,incomplete_description = #{PlanVo.incompleteDescription}
+            </if>
+            <if test="PlanVo.constructionTeam!=null">
+                ,construction_team = #{PlanVo.constructionTeam}
+            </if>
+            <if test="PlanVo.linkman!=null">
+                ,linkman = #{PlanVo.linkman}
+            </if>
+            <if test="PlanVo.phone!=null">
+                ,phone = #{PlanVo.phone}
+            </if>
+        WHERE
+            id = #{PlanVo.id}
+    </update>
+</mapper>

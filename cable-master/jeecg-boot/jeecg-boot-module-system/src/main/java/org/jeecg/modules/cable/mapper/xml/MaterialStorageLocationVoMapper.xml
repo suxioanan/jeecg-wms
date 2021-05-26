@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.cable.mapper.MaterialStorageLocationVoMapper">
+    <select id="queryBySid" resultType="org.jeecg.modules.cable.vo.MaterialStorageLocationVo">
+        select
+            zhuanyi.id,
+            zhuanyi.storage_location_id1 as storageLocationCId,
+            zhuanyi.storage_location_id2 as storageLocationRId,
+            zhuanyi.zhuanyi_shuliang as amount,
+            zhuanyi.zhuanyi_rongji as accomplishVolume,
+            zhuanyi.wuliao_id as materialId
+        from zhuanyi
+        where
+            storage_location_id1=#{sId}
+        union all
+        select
+            zhuanyi.id,
+            zhuanyi.storage_location_id1 as storageLocationCId,
+            zhuanyi.storage_location_id2 as storageLocationRId,
+            zhuanyi.zhuanyi_shuliang as amount,
+            zhuanyi.zhuanyi_rongji as accomplishVolume,
+            zhuanyi.wuliao_id as materialId
+        from zhuanyi
+        where
+            storage_location_id2=#{sId}
+</select>
+</mapper>
